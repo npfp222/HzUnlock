@@ -2,6 +2,7 @@ package io.github.npfp222.hzunlock;
 
 import android.animation.LayoutTransition;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.StatusBarManager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -53,28 +54,12 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
     private static final int PERMISSION = 32;
     private static final String AUTHOR = "npfp222";
     private static final String AUTHOR_URL = "https://github.com/npfp222";
-    private static final String REPO_URL = "https://github.com/npfp222/HzUnlock";
+    private static final String REPO_URL = Report.REPO_URL;
     private static final int[] DEFAULT_STOPS = {24, 30, 48, 60, 80, 120, 240};
-
-    /** iOS-style system colors for the current theme. */
-    private static final class Palette {
-        final int bg, card, label, secondary, separator, fill, accent, warn, link;
-
-        Palette(boolean dark) {
-            bg = dark ? 0xFF000000 : 0xFFF2F2F7;
-            card = dark ? 0xFF1C1C1E : 0xFFFFFFFF;
-            label = dark ? 0xFFFFFFFF : 0xFF000000;
-            secondary = dark ? 0xFF8D8D93 : 0xFF8A8A8E;
-            separator = dark ? 0xFF38383A : 0xFFC6C6C8;
-            fill = dark ? 0xFF39393D : 0xFFE9E9EB;
-            accent = dark ? 0xFF30D158 : 0xFF34C759;
-            warn = dark ? 0xFFFF9F0A : 0xFFFF9500;
-            link = dark ? 0xFF0A84FF : 0xFF007AFF;
-        }
-    }
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService commands = Executors.newSingleThreadExecutor();
+    private final ExecutorService network = Executors.newSingleThreadExecutor();
     private Palette c;
     private Prefs prefs;
     private ServiceBridge bridge;
@@ -97,6 +82,7 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
     private Switch restoreSwitch;
     private Switch coolSwitch;
     private Switch fixSwitch;
+    private Switch updateSwitch;
     private View reconnectRow;
     private TextView compatibilityValue;
     private LinearLayout compatibilityGroup;
@@ -113,6 +99,9 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
     private boolean updatingViews;
     private String message;
     private String report = "";
+    private AlertDialog dialog;
+    private UpdateChecker.Release pendingUpdate;
+    private boolean checkingUpdate;
     private Runnable setupAction = () -> {};
 
     private final Shizuku.OnBinderReceivedListener received = () -> main.post(this::connect);
@@ -168,6 +157,9 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         Shizuku.addRequestPermissionResultListener(permission);
         connect();
         poll.run();
+        alertCrash();
+        showPendingUpdate();
+        checkForUpdate(false);
     }
 
     @Override
@@ -184,7 +176,9 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
 
     @Override
     protected void onDestroy() {
+        if (dialog != null) dialog.dismiss();
         commands.shutdownNow();
+        network.shutdownNow();
         super.onDestroy();
     }
 
@@ -270,6 +264,7 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         state = snapshot;
         setupGroup.setVisibility(View.GONE);
         render();
+        alertCrash();
     }
 
     private void command(Command command) {
@@ -476,9 +471,19 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
             prefs.setAutoReconnect(on);
             pushSettings();
         });
+        separator(settings);
+        updateSwitch = new Switch(this);
+        switchRow(settings, "Check for Updates", updateSwitch, on -> {
+            prefs.setUpdateCheck(on);
+            if (on) checkForUpdate(false);
+        });
         restoreSwitch.setChecked(prefs.restore());
         coolSwitch.setChecked(prefs.coolDown());
         fixSwitch.setChecked(prefs.autoReconnect());
+        updateSwitch.setChecked(prefs.updateCheck());
+        TextView settingsNote = footer(column);
+        settingsNote.setText("Check for Updates asks GitHub once a day whether a newer HzUnlock is out. "
+                + "Nothing about your phone or monitor is sent.");
 
         // More
         LinearLayout more = group(column, 22);
@@ -488,6 +493,8 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         separator(more);
         compatibilityValue = new TextView(this);
         linkRow(more, "Compatibility", compatibilityValue, v -> toggleCompatibility());
+        separator(more);
+        linkRow(more, "Diagnostics", null, v -> openDiagnostics());
 
         // Compatibility details (collapsed)
         compatibilityGroup = group(column, 12);
@@ -511,7 +518,11 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         source.setText("GitHub");
         linkRow(about, "Source Code", source, v -> openUri(REPO_URL));
         separator(about);
-        linkRow(about, "Report an Issue", null, v -> reportIssue());
+        linkRow(about, "Report an Issue", null, v -> openDiagnostics());
+        separator(about);
+        TextView installed = new TextView(this);
+        installed.setText(BuildConfig.VERSION_NAME);
+        linkRow(about, "Check for Updates", installed, v -> checkForUpdate(true));
 
         version = label(column, "", 13, c.secondary, Typeface.NORMAL);
         version.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -812,9 +823,6 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
                 {phoneRates, "Lower rates", phoneRates ? "The slider can pace apps from the phone screen." : "Rate control isn't available."},
                 {heat, "Heat protection", heat ? "HzUnlock can see the phone's temperature." : "Temperature isn't readable."},
         };
-        StringBuilder text = new StringBuilder("HzUnlock ").append(BuildConfig.VERSION_NAME)
-                .append(" (").append(REPO_URL).append(")\n")
-                .append(state.optString("device")).append('\n');
         compatibilityList.removeAllViews();
         for (int i = 0; i < rows.length; i++) {
             boolean ok = (Boolean) rows[i][0];
@@ -834,32 +842,10 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
             row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
             label(labels, (String) rows[i][1], 16, c.label, Typeface.NORMAL);
             label(labels, (String) rows[i][2], 13, c.secondary, Typeface.NORMAL);
-            text.append(ok ? "[x] " : "[ ] ").append(rows[i][1]).append('\n');
         }
         TextView device = label(compatibilityList, state.optString("device"), 12, c.secondary, Typeface.NORMAL);
         device.setPadding(0, dp(10), 0, 0);
-        text.append("Timing calls: ").append(caps.optString("codes"))
-                .append(caps.optBoolean("monitorTimingVerified") ? " (verified)" : "").append('\n')
-                .append("Access: ").append(caps.optBoolean("root") ? "root" : "ADB shell").append('\n');
-        float target = prefs.target();
-        text.append("Settings: rate ").append(target <= 0 ? "fastest" : Math.round(target) + " Hz")
-                .append(", Fix Slow Connections ").append(prefs.autoReconnect() ? "on" : "off")
-                .append(", Cool Down ").append(prefs.coolDown() ? "on" : "off").append('\n');
-        if (monitor != null) {
-            text.append(String.format(Locale.US, "Monitor: %s %dx%d @ %.0f Hz (fastest %.0f Hz)\n", monitor.optString("name"),
-                    monitor.optInt("width"), monitor.optInt("height"), monitor.optDouble("linkHz"), monitor.optDouble("fastestHz")));
-            JSONArray rates = monitor.optJSONArray("rates");
-            if (rates != null) {
-                text.append(String.format(Locale.US, "Rates at %dx%d: ", monitor.optInt("width"), monitor.optInt("height")))
-                        .append(rates.toString().replace(",", ", ")).append('\n');
-            }
-            if (monitor.has("modes")) text.append("Fastest per resolution: ").append(monitor.optString("modes")).append('\n');
-            if (monitor.has("limitedHz")) {
-                text.append(String.format(Locale.US, "Connection: stays at %.0f Hz after reconnecting\n", monitor.optDouble("limitedHz")));
-            }
-        }
-        text.append("Stops: ").append(Arrays.toString(stops));
-        report = text.toString();
+        report = Report.summary(state, prefs);
     }
 
     private int selectedIndex() {
@@ -890,17 +876,88 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         Toast.makeText(this, "Report copied", Toast.LENGTH_SHORT).show();
     }
 
-    /** Opens a new GitHub issue with this phone's compatibility report already filled in. */
-    private void reportIssue() {
-        String details = report.isEmpty()
-                ? "HzUnlock " + BuildConfig.VERSION_NAME + "\n" + android.os.Build.MANUFACTURER + " "
-                        + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE
-                        + "\n(Not connected to Shizuku)"
-                : report;
-        String body = "**Compatibility report**\n```\n" + details + "\n```\n\n"
-                + "**Monitor and connection** (for example: Odyssey G40B, USB-C to DisplayPort hub):\n\n\n"
-                + "**What happened:**\n";
-        openUri(REPO_URL + "/issues/new?body=" + Uri.encode(body));
+    private void openDiagnostics() {
+        startActivity(new Intent(this, DiagnosticsActivity.class));
+    }
+
+    private AlertDialog.Builder dialogBuilder() {
+        return new AlertDialog.Builder(this, c.dark ? android.R.style.Theme_DeviceDefault_Dialog_Alert
+                : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert);
+    }
+
+    private boolean dialogShowing() {
+        return dialog != null && dialog.isShowing();
+    }
+
+    /** Offers to report a crash of the app or its display service that the user hasn't seen yet. */
+    private void alertCrash() {
+        if (!visible || dialogShowing()) return;
+        long app = HzUnlockApp.savedCrashTime(this);
+        long service = state == null ? 0 : state.optLong("crashAt");
+        long newest = Math.max(app, service);
+        if (newest <= prefs.seenCrash()) return;
+        boolean serviceCrash = service >= app;
+        dialog = dialogBuilder()
+                .setTitle(serviceCrash ? "HzUnlock's Display Service Stopped" : "HzUnlock Closed Unexpectedly")
+                .setMessage("A report helps get this fixed. You'll see everything in it before anything is shared.")
+                .setPositiveButton("Review Report", (d, which) -> {
+                    prefs.setSeenCrash(newest);
+                    openDiagnostics();
+                })
+                .setNegativeButton("Not Now", (d, which) -> prefs.setSeenCrash(newest))
+                .setOnCancelListener(d -> prefs.setSeenCrash(newest))
+                .setOnDismissListener(d -> showPendingUpdate())
+                .show();
+    }
+
+    /**
+     * Asks GitHub whether a newer release is out. Automatic checks run at most once a day when
+     * Check for Updates is on, and skip a version the user chose to skip; a manual check always runs
+     * and reports the result.
+     */
+    private void checkForUpdate(boolean manual) {
+        long now = System.currentTimeMillis();
+        if (checkingUpdate) return;
+        if (!manual && (!prefs.updateCheck() || now - prefs.lastUpdateCheck() < UpdateChecker.INTERVAL_MS)) return;
+        checkingUpdate = true;
+        prefs.setLastUpdateCheck(now);
+        if (manual) Toast.makeText(this, "Checking for updates…", Toast.LENGTH_SHORT).show();
+        network.execute(() -> {
+            UpdateChecker.Release release = null;
+            String error = null;
+            try {
+                release = UpdateChecker.newerThan(BuildConfig.VERSION_NAME);
+            } catch (Exception e) {
+                error = Errors.describe(e);
+            }
+            UpdateChecker.Release found = release;
+            String problem = error;
+            main.post(() -> {
+                checkingUpdate = false;
+                if (found != null && (manual || !found.version().equals(prefs.skippedVersion()))) {
+                    pendingUpdate = found;
+                    showPendingUpdate();
+                } else if (manual && !isDestroyed()) {
+                    Toast.makeText(this, problem != null ? "Couldn't check for updates. " + problem
+                            : "HzUnlock " + BuildConfig.VERSION_NAME + " is up to date.", Toast.LENGTH_LONG).show();
+                }
+            });
+        });
+    }
+
+    private void showPendingUpdate() {
+        UpdateChecker.Release release = pendingUpdate;
+        if (release == null || !visible || dialogShowing()) return;
+        pendingUpdate = null;
+        String notes = release.notes().isEmpty() ? "" : release.notes() + "\n\n";
+        dialog = dialogBuilder()
+                .setTitle("HzUnlock " + release.version() + " Is Available")
+                .setMessage(notes + "You have " + BuildConfig.VERSION_NAME + ". Download the new version from GitHub "
+                        + "and install it over this one. Your settings carry over.")
+                .setPositiveButton("Download", (d, which) -> openUri(release.pageUrl()))
+                .setNegativeButton("Later", null)
+                .setNeutralButton("Skip This Version", (d, which) -> prefs.setSkippedVersion(release.version()))
+                .show();
     }
 
     private void addTile() {

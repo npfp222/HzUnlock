@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -64,6 +65,12 @@ final class RefreshSession {
     private final Set<Long> autoReconnected = new HashSet<>();
     /** Monitors that came back below their fastest mode after a reconnect → the rate they're stuck at. */
     private final Map<Long, Float> limitedLinks = new HashMap<>();
+    /** What was last written to the event log about each monitor's mode, to log only changes. */
+    private final Map<Long, String> loggedModes = new HashMap<>();
+    private final Map<Long, String> monitorNames = new HashMap<>();
+    private final EventLog log = new EventLog();
+    private String loggedRate;
+    private String loggedSettings;
 
     private ScheduledExecutorService worker;
     private RandomAccessFile shellLock;
@@ -105,10 +112,20 @@ final class RefreshSession {
         thermalStatus = DisplayControl.thermalStatus();
     }
 
+    EventLog log() {
+        return log;
+    }
+
     synchronized void configure(float target, boolean reconnect, boolean cool) {
         targetHz = target <= 0 ? 1000f : target;
         autoReconnect = reconnect;
         coolDown = cool;
+        String settings = "Settings: rate " + (targetHz >= 1000f ? "fastest" : Math.round(targetHz) + " Hz")
+                + ", Fix Slow Connections " + (reconnect ? "on" : "off") + ", Cool Down " + (cool ? "on" : "off");
+        if (!settings.equals(loggedSettings)) {
+            loggedSettings = settings;
+            log.add(settings);
+        }
         if (worker != null) worker.execute(this::tick);
     }
 
@@ -116,6 +133,7 @@ final class RefreshSession {
         configure(target, reconnect, cool);
         if (worker != null) return "High refresh is on.";
         if (noPacesetter && !DisplayControl.canHoldPolicy()) {
+            log.add("Couldn't start: no pacesetter calls and no display policy control.");
             return "This phone doesn't expose the display controls HzUnlock needs.";
         }
         try {
@@ -132,7 +150,10 @@ final class RefreshSession {
                 }
                 originalStartMode = readStartMode();
             }
-            unlockHighResolution();
+            log.add("High refresh on. Monitor timing " + (noPacesetter ? "unavailable" : "available")
+                    + " (calls " + DisplayControl.pacesetterCodes() + "), phone rates "
+                    + (DisplayControl.canHoldPolicy() ? "available" : "unavailable") + ", " + (root ? "root" : "ADB shell") + ".");
+            unlockHighResolution("start");
             worker = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, "hzunlock-session"));
             worker.scheduleWithFixedDelay(this::tick, 0, TICK_MS, TimeUnit.MILLISECONDS);
             return "High refresh is on.";
@@ -140,6 +161,7 @@ final class RefreshSession {
             if (worker != null) worker.shutdownNow();
             worker = null;
             closeLocks();
+            log.add("Couldn't turn on high refresh: " + DisplayControl.describe(e));
             return "Couldn't turn on high refresh. " + DisplayControl.describe(e);
         }
     }
@@ -174,16 +196,21 @@ final class RefreshSession {
         autoReconnected.clear();
         limitedLinks.clear();
         checkReconnect = false;
+        loggedModes.clear();
+        loggedRate = null;
         closeLocks();
+        log.add(problem == null ? "High refresh off." : "High refresh off, but couldn't restore " + problem + ".");
         return problem == null ? "High refresh is off." : "High refresh is off, but HzUnlock couldn't restore " + problem + ".";
     }
 
-    private void unlockHighResolution() {
+    private void unlockHighResolution(String reason) {
         if (!DisplayControl.hasHighResolutionSwitch()) return;
         try {
             DisplayControl.setHighResolution(true);
-        } catch (Exception ignored) {
+            log.add("Switched on DeX's high-refresh modes (" + reason + ").");
+        } catch (Exception e) {
             // Older DeX builds expose high-refresh modes without the switch.
+            log.add("DeX's high-refresh switch failed (" + reason + "): " + DisplayControl.describe(e));
         }
     }
 
@@ -201,8 +228,23 @@ final class RefreshSession {
             for (DisplayControl.Info display : displays) {
                 present.add(display.id());
                 if (display.internal()) continue;
-                newMonitor |= seenMonitors.add(display.id());
+                String mode = describe(display.active());
+                if (seenMonitors.add(display.id())) {
+                    newMonitor = true;
+                    monitorNames.put(display.id(), display.name());
+                    log.add("Monitor connected: " + display.name() + " " + mode + " (fastest "
+                            + Math.round(display.fastest().hz()) + " Hz, " + display.modes().size() + " modes).");
+                } else if (!mode.equals(loggedModes.get(display.id()))) {
+                    log.add("Monitor mode changed: " + display.name() + " " + mode + ".");
+                }
+                loggedModes.put(display.id(), mode);
                 connectedSince.putIfAbsent(display.id(), now);
+            }
+            for (Long id : seenMonitors) {
+                if (!present.contains(id)) {
+                    log.add("Monitor disconnected: " + monitorNames.getOrDefault(id, "external display") + ".");
+                    loggedModes.remove(id);
+                }
             }
             seenMonitors.retainAll(present);
             // A reconnect restarts DeX, and the monitor can drop out and come back while it does.
@@ -221,7 +263,7 @@ final class RefreshSession {
                 // can never drive a restart loop.
                 if (!settling && (lastUnlock == 0 || now - lastUnlock > UNLOCK_GAP_MS)) {
                     lastUnlock = now;
-                    unlockHighResolution();
+                    unlockHighResolution("monitor attached");
                 }
             }
             policies.keySet().retainAll(present);
@@ -235,6 +277,7 @@ final class RefreshSession {
                 if (phone != null) release(phone.id());
                 setPacesetter(null);
                 appHz = 0;
+                logRate("No monitor; the phone runs at Android's own rates.");
             } else {
                 float link = lead.active().hz();
                 float want = effectiveTarget();
@@ -255,13 +298,28 @@ final class RefreshSession {
                     setPacesetter(lead.id());
                     appHz = noPacesetter ? (phone != null ? phone.active().hz() : 60f) : link;
                 }
+                logRate(String.format(Locale.US, "Apps run at %d Hz, paced by the %s%s.", Math.round(appHz),
+                        phoneMode != null ? "phone screen" : noPacesetter ? "phone screen (no monitor timing)" : "monitor",
+                        throttled ? ", lowered for heat" : ""));
                 checkAfterReconnect(lead, now);
                 if (needsReconnect(lead)) onSlowConnection(lead, now);
             }
             if (notice != null && notice.startsWith("Display update failed")) notice = null;
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            // Catch errors too: an uncaught one would silently cancel the scheduled tick.
             notice = "Display update failed: " + DisplayControl.describe(e);
+            log.add(notice);
         }
+    }
+
+    private void logRate(String text) {
+        if (text.equals(loggedRate)) return;
+        loggedRate = text;
+        log.add(text);
+    }
+
+    private static String describe(DisplayControl.Mode mode) {
+        return mode.width() + "x" + mode.height() + " @ " + Math.round(mode.hz()) + " Hz";
     }
 
     /** The phone panel that is switched on (foldables have two), else the first internal panel. */
@@ -322,7 +380,9 @@ final class RefreshSession {
         long now = SystemClock.elapsedRealtime();
         if (now - thermalCheckedAt < 2_000) return;
         thermalCheckedAt = now;
-        thermalStatus = DisplayControl.thermalStatus();
+        int status = DisplayControl.thermalStatus();
+        if (status != thermalStatus) log.add("Thermal status " + thermalStatus + " -> " + status + ".");
+        thermalStatus = status;
         float cap = thermalStatus >= 3 ? 60f : thermalStatus == 2 ? 120f : Float.MAX_VALUE;
         if (cap < thermalCap) {
             thermalCap = cap;
@@ -395,6 +455,7 @@ final class RefreshSession {
     }
 
     private void disablePacesetter() {
+        log.add("SurfaceFlinger didn't confirm the forced pacesetter; pacing from the phone screen from now on.");
         noPacesetter = true;
         pacesetter = null;
         notice = "This phone didn't accept moving app timing to the monitor, so HzUnlock paces apps from the phone screen.";
@@ -424,8 +485,14 @@ final class RefreshSession {
         Long since = connectedSince.get(display.id());
         if (since != null && now - since < RECONNECT_CHECK_MS) return;
         checkReconnect = false;
-        if (display.belowFastest()) limitedLinks.put(display.id(), display.active().hz());
-        else limitedLinks.remove(display.id());
+        if (display.belowFastest()) {
+            limitedLinks.put(display.id(), display.active().hz());
+            log.add("After reconnecting: still " + describe(display.active()) + " (fastest " + Math.round(display.fastest().hz())
+                    + " Hz). The connection tops out here; no more automatic reconnects for this plug-in.");
+        } else {
+            limitedLinks.remove(display.id());
+            log.add("After reconnecting: " + describe(display.active()) + ".");
+        }
     }
 
     private void onSlowConnection(DisplayControl.Info display, long now) {
@@ -448,16 +515,24 @@ final class RefreshSession {
         if (lastAutoReconnect != 0 && now - lastAutoReconnect < AUTO_RECONNECT_GAP_MS) return;
         autoReconnected.add(display.id());
         lastAutoReconnect = now;
-        reconnect();
+        reconnect("automatic, monitor at " + Math.round(display.active().hz()) + " of "
+                + Math.round(display.fastest().hz()) + " Hz");
     }
 
     // ---- reconnect -----------------------------------------------------------------------
 
-    synchronized String reconnect() {
+    /** Reconnects the monitor because the user asked to. */
+    String reconnect() {
+        return reconnect("manual");
+    }
+
+    private synchronized String reconnect(String reason) {
         if (reconnecting) return "Already reconnecting.";
         if (!(root && new File(DP_DEX).exists()) && !DisplayControl.hasHighResolutionSwitch()) {
+            log.add("Reconnect (" + reason + ") unavailable: no DeX high-refresh switch.");
             return "Unplug the monitor and plug it back in.";
         }
+        log.add("Reconnecting the monitor (" + reason + ").");
         reconnecting = true;
         checkReconnect = false;
         Thread thread = new Thread(() -> {
@@ -476,6 +551,7 @@ final class RefreshSession {
                 }
             } catch (Exception e) {
                 notice = "Reconnect failed. Unplug the monitor and plug it back in.";
+                log.add("Reconnect failed: " + DisplayControl.describe(e));
             } finally {
                 // Never leave DeX's high-refresh modes switched off.
                 if (switchedOff) {
@@ -490,6 +566,7 @@ final class RefreshSession {
                 lastUnlock = reconnectEndedAt;
                 checkReconnect = true;
                 reconnecting = false;
+                log.add("Reconnect finished.");
             }
         }, "hzunlock-reconnect");
         thread.start();

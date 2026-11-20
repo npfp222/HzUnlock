@@ -53,6 +53,50 @@ final class Prefs {
         store.edit().putBoolean("coolDown", value).apply();
     }
 
+    /** Check GitHub for a newer release about once a day. */
+    boolean updateCheck() {
+        return store.getBoolean("updateCheck", true);
+    }
+
+    void setUpdateCheck(boolean value) {
+        store.edit().putBoolean("updateCheck", value).apply();
+    }
+
+    long lastUpdateCheck() {
+        return store.getLong("lastUpdateCheck", 0);
+    }
+
+    void setLastUpdateCheck(long time) {
+        store.edit().putLong("lastUpdateCheck", time).apply();
+    }
+
+    /** A release the user chose to skip; its popup isn't shown again. */
+    String skippedVersion() {
+        return store.getString("skippedVersion", "");
+    }
+
+    void setSkippedVersion(String version) {
+        store.edit().putString("skippedVersion", version).apply();
+    }
+
+    /** The newest app or service crash time the user has already been told about. */
+    long seenCrash() {
+        return store.getLong("seenCrash", 0);
+    }
+
+    void setSeenCrash(long time) {
+        if (time > seenCrash()) store.edit().putLong("seenCrash", time).apply();
+    }
+
+    /** Whether diagnostics reports include the display-related system log. */
+    boolean includeSystemLog() {
+        return store.getBoolean("includeSystemLog", true);
+    }
+
+    void setIncludeSystemLog(boolean value) {
+        store.edit().putBoolean("includeSystemLog", value).apply();
+    }
+
     /** Whether the user last left high refresh on. */
     boolean wantOn() {
         return store.getBoolean("wantOn", false);

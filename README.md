@@ -44,6 +44,8 @@ High refresh also depends on the cable or hub. Some HDMI adapters stop at 120 Hz
 - **Fix Slow Connections** (off by default). If the monitor comes up below its fastest mode, HzUnlock reconnects it once per plug-in. If it comes back at the same rate, HzUnlock stops trying and tells you the connection tops out there. **Reconnect Monitor** is also available as a button.
 - **Connection hints.** When the monitor only offers 60 Hz over the current hub or cable, or reaches a faster rate at a lower resolution, HzUnlock says so.
 - An iOS-style design that follows the system light/dark theme and fits phone screens and DeX windows.
+- **Diagnostics.** A report you can read before sharing: the compatibility summary, a timestamped log of what the session did (monitors connecting, reconnects, rate changes, heat, errors), any saved crash of the app or its display service, and optionally the display-related lines of Android's log with e-mail addresses and long IDs masked. Copy it, share it, or open a prefilled GitHub issue. If HzUnlock crashed, it offers the report the next time you open it.
+- **Update check** (on by default). Once a day HzUnlock asks GitHub whether a newer release is out and offers to download it. **Check for Updates** under About checks right away.
 
 ## How it works
 
@@ -55,6 +57,10 @@ The ADB shell UID holds `ACCESS_SURFACE_FLINGER`, which allows the calls below. 
 - **Heat.** `dumpsys thermalservice` provides the thermal status.
 
 Root adds connect-time timing control (`vendor.display.hdmi_cfg_idx`) and a driver-level reconnect.
+
+## Privacy
+
+HzUnlock uses the network for one thing: the update check, a request to `api.github.com` for this repository's latest release. It sends no information about your phone, monitor, or usage beyond what any web request carries (your IP address and a `HzUnlock/<version>` user agent). Turn off **Check for Updates** in Settings and the app makes no network requests at all. Diagnostics reports stay on the phone until you copy or share them yourself.
 
 ## Repository layout
 
