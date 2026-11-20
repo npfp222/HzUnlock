@@ -70,7 +70,7 @@ final class Prefs {
         store.edit().putLong("lastUpdateCheck", time).apply();
     }
 
-    /** A release the user chose to skip; its popup isn't shown again. */
+    /** The newest release when the user chose Skip This Version; only a later checkpoint pops up again. */
     String skippedVersion() {
         return store.getString("skippedVersion", "");
     }

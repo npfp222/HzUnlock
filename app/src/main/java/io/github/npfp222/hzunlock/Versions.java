@@ -1,5 +1,7 @@
 package io.github.npfp222.hzunlock;
 
+import java.util.regex.Pattern;
+
 /** Version comparison and release-note cleanup for the update check. Plain Java for testing. */
 final class Versions {
     private Versions() {}
@@ -40,6 +42,41 @@ final class Versions {
         return numbers;
     }
 
+    /**
+     * Release notes containing this HTML comment mark a checkpoint release: the automatic update
+     * check announces only those. GitHub doesn't show HTML comments on the release page.
+     */
+    private static final Pattern NOTIFY =
+            Pattern.compile("<!--\\s*notify\\s*-->", Pattern.CASE_INSENSITIVE);
+
+    static boolean isCheckpoint(String notes) {
+        return notes != null && NOTIFY.matcher(notes).find();
+    }
+
+    /** One published release, as listed by GitHub. */
+    record Candidate(String version, String pageUrl, String notes, boolean draft, boolean prerelease) {}
+
+    /**
+     * What's newer than {@code installed}: the newest release of all (what to download) and the
+     * newest checkpoint release (what decides whether to announce it). Either may be null.
+     */
+    record Choice(Candidate newest, Candidate checkpoint) {}
+
+    static Choice choose(Iterable<Candidate> releases, String installed) {
+        Candidate newest = null;
+        Candidate checkpoint = null;
+        for (Candidate release : releases) {
+            if (release.draft() || release.prerelease() || release.version().isEmpty()) continue;
+            if (compare(release.version(), installed) <= 0) continue;
+            if (newest == null || compare(release.version(), newest.version()) > 0) newest = release;
+            if (isCheckpoint(release.notes())
+                    && (checkpoint == null || compare(release.version(), checkpoint.version()) > 0)) {
+                checkpoint = release;
+            }
+        }
+        return new Choice(newest, checkpoint);
+    }
+
     /** "v1.0.2" → "1.0.2". */
     static String fromTag(String tag) {
         String text = tag == null ? "" : tag.trim();
@@ -55,7 +92,8 @@ final class Versions {
         if (markdown == null) return "";
         StringBuilder out = new StringBuilder();
         boolean truncated = false;
-        for (String raw : markdown.replace("\r", "").split("\n")) {
+        String cleaned = markdown.replace("\r", "").replaceAll("(?s)<!--.*?-->", "");
+        for (String raw : cleaned.split("\n")) {
             String line = raw.stripTrailing();
             if (line.startsWith("#") && line.toLowerCase(java.util.Locale.ROOT).contains("verify")) break;
             if (line.startsWith("# ")) continue; // the release title repeats the dialog's title

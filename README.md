@@ -45,7 +45,7 @@ High refresh also depends on the cable or hub. Some HDMI adapters stop at 120 Hz
 - **Connection hints.** When the monitor only offers 60 Hz over the current hub or cable, or reaches a faster rate at a lower resolution, HzUnlock says so.
 - An iOS-style design that follows the system light/dark theme and fits phone screens and DeX windows.
 - **Diagnostics.** A report you can read before sharing: the compatibility summary, a timestamped log of what the session did (monitors connecting, reconnects, rate changes, heat, errors), any saved crash of the app or its display service, and optionally the display-related lines of Android's log with e-mail addresses and long IDs masked. Copy it, share it, or open a prefilled GitHub issue. If HzUnlock crashed, it offers the report the next time you open it.
-- **Update check** (on by default). Once a day HzUnlock asks GitHub whether a newer release is out and offers to download it. **Check for Updates** under About checks right away.
+- **Update check** (on by default). Once a day HzUnlock asks GitHub about new releases and offers to download major ones (checkpoint releases). Small updates don't pop up. **Check for Updates** under About checks right away and shows every newer release.
 
 ## How it works
 
@@ -60,7 +60,7 @@ Root adds connect-time timing control (`vendor.display.hdmi_cfg_idx`) and a driv
 
 ## Privacy
 
-HzUnlock uses the network for one thing: the update check, a request to `api.github.com` for this repository's latest release. It sends no information about your phone, monitor, or usage beyond what any web request carries (your IP address and a `HzUnlock/<version>` user agent). Turn off **Check for Updates** in Settings and the app makes no network requests at all. Diagnostics reports stay on the phone until you copy or share them yourself.
+HzUnlock uses the network for one thing: the update check, a request to `api.github.com` for this repository's list of releases. It sends no information about your phone, monitor, or usage beyond what any web request carries (your IP address and a `HzUnlock/<version>` user agent). Turn off **Check for Updates** in Settings and the app makes no network requests unless you tap **Check for Updates** under About. Diagnostics reports stay on the phone until you copy or share them yourself.
 
 ## Repository layout
 
@@ -103,6 +103,18 @@ keyPassword=…
 ```
 
 The signed APK is written to `app/build/outputs/apk/release/HzUnlock-release.apk`. Without `keystore.properties` the build is unsigned. HzUnlock uses hidden system interfaces, so it's distributed through GitHub Releases rather than Google Play.
+
+### Publishing releases
+
+Publish every update as a normal (not pre-release) GitHub release with a `vX.Y.Z` tag. Small updates need nothing else: people get them through **Check for Updates** or the next popup.
+
+To make a release a **checkpoint**, the kind the app announces with a popup, add this line anywhere in its release notes:
+
+```markdown
+<!-- notify -->
+```
+
+GitHub doesn't show HTML comments, so readers never see it. Once a day the app reads the last 30 releases. If one newer than the installed version carries the marker, it shows a popup for the newest release, which includes the checkpoint, along with the checkpoint's notes. **Skip This Version** stays quiet until a later checkpoint comes out. Drafts and pre-releases are always ignored.
 
 ## License
 

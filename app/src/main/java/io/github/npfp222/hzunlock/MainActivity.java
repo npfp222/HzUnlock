@@ -100,7 +100,7 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
     private String message;
     private String report = "";
     private AlertDialog dialog;
-    private UpdateChecker.Release pendingUpdate;
+    private UpdateChecker.Update pendingUpdate;
     private boolean checkingUpdate;
     private Runnable setupAction = () -> {};
 
@@ -482,8 +482,8 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         fixSwitch.setChecked(prefs.autoReconnect());
         updateSwitch.setChecked(prefs.updateCheck());
         TextView settingsNote = footer(column);
-        settingsNote.setText("Check for Updates asks GitHub once a day whether a newer HzUnlock is out. "
-                + "Nothing about your phone or monitor is sent.");
+        settingsNote.setText("Check for Updates asks GitHub once a day and lets you know about major updates. "
+                + "Check for Updates under About shows every update. Nothing about your phone or monitor is sent.");
 
         // More
         LinearLayout more = group(column, 22);
@@ -912,8 +912,9 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
 
     /**
      * Asks GitHub whether a newer release is out. Automatic checks run at most once a day when
-     * Check for Updates is on, and skip a version the user chose to skip; a manual check always runs
-     * and reports the result.
+     * Check for Updates is on, and announce only checkpoint releases (notes marked
+     * {@code <!-- notify -->}) newer than any version the user skipped, so small updates don't
+     * nag. A manual check always runs and reports any newer release.
      */
     private void checkForUpdate(boolean manual) {
         long now = System.currentTimeMillis();
@@ -923,18 +924,18 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         prefs.setLastUpdateCheck(now);
         if (manual) Toast.makeText(this, "Checking for updates…", Toast.LENGTH_SHORT).show();
         network.execute(() -> {
-            UpdateChecker.Release release = null;
+            UpdateChecker.Update release = null;
             String error = null;
             try {
                 release = UpdateChecker.newerThan(BuildConfig.VERSION_NAME);
             } catch (Exception e) {
                 error = Errors.describe(e);
             }
-            UpdateChecker.Release found = release;
+            UpdateChecker.Update found = release;
             String problem = error;
             main.post(() -> {
                 checkingUpdate = false;
-                if (found != null && (manual || !found.version().equals(prefs.skippedVersion()))) {
+                if (found != null && (manual || announce(found))) {
                     pendingUpdate = found;
                     showPendingUpdate();
                 } else if (manual && !isDestroyed()) {
@@ -945,8 +946,15 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         });
     }
 
+    /** Whether an automatic check should show {@code update}: only for a checkpoint not skipped. */
+    private boolean announce(UpdateChecker.Update update) {
+        String skipped = prefs.skippedVersion();
+        return update.checkpoint() != null
+                && (skipped.isEmpty() || Versions.compare(update.checkpoint(), skipped) > 0);
+    }
+
     private void showPendingUpdate() {
-        UpdateChecker.Release release = pendingUpdate;
+        UpdateChecker.Update release = pendingUpdate;
         if (release == null || !visible || dialogShowing()) return;
         pendingUpdate = null;
         String notes = release.notes().isEmpty() ? "" : release.notes() + "\n\n";
