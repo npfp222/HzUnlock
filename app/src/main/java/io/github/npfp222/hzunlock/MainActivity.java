@@ -51,6 +51,9 @@ import rikka.shizuku.Shizuku;
 public final class MainActivity extends Activity implements ServiceBridge.Listener {
     static final String ACTION_TOGGLE = "io.github.npfp222.hzunlock.TOGGLE";
     private static final int PERMISSION = 32;
+    private static final String AUTHOR = "npfp222";
+    private static final String AUTHOR_URL = "https://github.com/npfp222";
+    private static final String REPO_URL = "https://github.com/npfp222/HzUnlock";
     private static final int[] DEFAULT_STOPS = {24, 30, 48, 60, 80, 120, 240};
 
     /** iOS-style system colors for the current theme. */
@@ -476,6 +479,17 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         copy.setOnClickListener(v -> copyReport());
         compatibilityGroup.setVisibility(View.GONE);
 
+        // About
+        header(column, "ABOUT");
+        LinearLayout about = group(column, 6);
+        TextView developer = new TextView(this);
+        developer.setText(AUTHOR);
+        linkRow(about, "Developer", developer, v -> openUri(AUTHOR_URL));
+        separator(about);
+        TextView source = new TextView(this);
+        source.setText("GitHub");
+        linkRow(about, "Source Code", source, v -> openUri(REPO_URL));
+
         version = label(column, "", 13, c.secondary, Typeface.NORMAL);
         version.setGravity(Gravity.CENTER_HORIZONTAL);
         top(version, 24);
@@ -720,7 +734,7 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         reconnectRow.setAlpha(reconnectRow.isEnabled() ? 1f : 0.4f);
 
         renderCompatibility(caps, monitor);
-        version.setText("HzUnlock " + BuildConfig.VERSION_NAME);
+        version.setText("HzUnlock " + BuildConfig.VERSION_NAME + " · Made by " + AUTHOR);
     }
 
     private void renderCompatibility(JSONObject caps, JSONObject monitor) {
@@ -742,7 +756,8 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
                 {phoneRates, "Lower rates", phoneRates ? "The slider can pace apps from the phone screen." : "Rate control isn't available."},
                 {heat, "Heat protection", heat ? "HzUnlock can see the phone's temperature." : "Temperature isn't readable."},
         };
-        StringBuilder text = new StringBuilder("HzUnlock ").append(BuildConfig.VERSION_NAME).append('\n')
+        StringBuilder text = new StringBuilder("HzUnlock ").append(BuildConfig.VERSION_NAME)
+                .append(" (").append(REPO_URL).append(")\n")
                 .append(state.optString("device")).append('\n');
         compatibilityList.removeAllViews();
         for (int i = 0; i < rows.length; i++) {
