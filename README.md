@@ -99,4 +99,4 @@ The signed APK is written to `app/build/outputs/apk/release/HzUnlock-release.apk
 
 ## License
 
-[MIT](LICENSE)
+HzUnlock is **source-available, not open source**. You're welcome to read the code and build it yourself to verify the releases. Redistributing, republishing, or reusing it requires written permission. See [LICENSE](LICENSE) for the terms. Copyright © 2026 npfp222. All rights reserved.

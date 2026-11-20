@@ -1,16 +1,35 @@
-MIT License
+HzUnlock Source-Available License
 
-Copyright (c) 2026 npfp222
+Copyright (c) 2026 npfp222. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This repository is public so that anyone can inspect the source code and verify
+that official HzUnlock releases are safe. No ownership or other rights are
+transferred except the limited permissions below.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+You MAY:
+
+  1. View and read the source code.
+  2. Build the software from this source for your own personal,
+     non-commercial use, including to verify official releases.
+  3. Open issues and submit pull requests to this repository. By submitting a
+     contribution, you agree that it may be included in HzUnlock and
+     distributed under these terms.
+
+You MAY NOT, without prior written permission from the copyright holder:
+
+  1. Redistribute, publish, upload, sell, sublicense, or otherwise make
+     available the software or any binary built from it, in original or
+     modified form.
+  2. Publish modified versions or derivative works, or copy any part of this
+     source code into another project.
+  3. Use the HzUnlock name or icon for any other software or service.
+
+Forks created through GitHub exist only as permitted by GitHub's Terms of
+Service and grant no rights beyond those listed above.
+
+Third-party components keep their own licenses. In particular, the app uses
+the Shizuku API library (https://github.com/RikkaApps/Shizuku-API), which is
+provided under its own license.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -18,4 +37,4 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+SOFTWARE. USE IT AT YOUR OWN RISK.
