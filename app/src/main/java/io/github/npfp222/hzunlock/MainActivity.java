@@ -52,7 +52,6 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
     static final String ACTION_TOGGLE = "io.github.npfp222.hzunlock.TOGGLE";
     private static final int PERMISSION = 32;
     private static final String AUTHOR = "npfp222";
-    private static final String AUTHOR_URL = "https://github.com/npfp222";
     private static final String REPO_URL = "https://github.com/npfp222/HzUnlock";
     private static final int[] DEFAULT_STOPS = {24, 30, 48, 60, 80, 120, 240};
 
@@ -502,10 +501,6 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         // About
         header(column, "ABOUT");
         LinearLayout about = group(column, 6);
-        TextView developer = new TextView(this);
-        developer.setText(AUTHOR);
-        linkRow(about, "Developer", developer, v -> openUri(AUTHOR_URL));
-        separator(about);
         TextView source = new TextView(this);
         source.setText("GitHub");
         linkRow(about, "Source Code", source, v -> openUri(REPO_URL));
@@ -754,7 +749,7 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         reconnectRow.setAlpha(reconnectRow.isEnabled() ? 1f : 0.4f);
 
         renderCompatibility(caps, monitor);
-        version.setText("HzUnlock " + BuildConfig.VERSION_NAME + " · Made by " + AUTHOR);
+        version.setText("HzUnlock " + BuildConfig.VERSION_NAME);
     }
 
     private void renderCompatibility(JSONObject caps, JSONObject monitor) {
