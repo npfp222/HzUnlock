@@ -13,3 +13,6 @@ keystore.properties
 
 # Local development notes
 app/CLAUDE_HANDOFF.md
+
+# Release artifacts (upload to GitHub Releases)
+release/
