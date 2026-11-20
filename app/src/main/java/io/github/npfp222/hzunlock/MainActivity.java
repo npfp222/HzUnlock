@@ -58,7 +58,7 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
 
     /** iOS-style system colors for the current theme. */
     private static final class Palette {
-        final int bg, card, label, secondary, separator, fill, accent, warn;
+        final int bg, card, label, secondary, separator, fill, accent, warn, link;
 
         Palette(boolean dark) {
             bg = dark ? 0xFF000000 : 0xFFF2F2F7;
@@ -69,6 +69,7 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
             fill = dark ? 0xFF39393D : 0xFFE9E9EB;
             accent = dark ? 0xFF30D158 : 0xFF34C759;
             warn = dark ? 0xFFFF9F0A : 0xFFFF9500;
+            link = dark ? 0xFF0A84FF : 0xFF007AFF;
         }
     }
 
@@ -352,8 +353,27 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         });
         setContentView(scroll);
 
-        TextView title = label(column, "HzUnlock", 34, c.label, Typeface.BOLD);
-        title.setPadding(dp(4), dp(16), 0, 0);
+        LinearLayout header = new LinearLayout(this);
+        header.setGravity(Gravity.BOTTOM);
+        header.setPadding(dp(4), dp(16), 0, 0);
+        column.addView(header, new LinearLayout.LayoutParams(-1, -2));
+        TextView title = label(header, "HzUnlock", 34, c.label, Typeface.BOLD);
+        title.setLayoutParams(new LinearLayout.LayoutParams(-2, -2));
+        TextView credit = label(header, "by " + AUTHOR, 15, c.link, Typeface.NORMAL);
+        LinearLayout.LayoutParams creditLayout = new LinearLayout.LayoutParams(-2, -2);
+        creditLayout.leftMargin = dp(10);
+        credit.setLayoutParams(creditLayout);
+        // Sit on the title's baseline area and stay comfortably tappable.
+        credit.setPadding(dp(4), dp(8), dp(4), dp(7));
+        Drawable mark = getDrawable(R.drawable.ic_github).mutate();
+        mark.setTint(c.link);
+        mark.setBounds(0, 0, dp(16), dp(16));
+        credit.setCompoundDrawablesRelative(null, null, mark, null);
+        credit.setCompoundDrawablePadding(dp(6));
+        credit.setContentDescription("By " + AUTHOR + ", open HzUnlock on GitHub");
+        credit.setBackground(new RippleDrawable(ColorStateList.valueOf(Color.argb(40, 128, 128, 128)), null,
+                rounded(Color.WHITE, 8)));
+        credit.setOnClickListener(v -> openUri(REPO_URL));
 
         // Setup (only while Shizuku isn't ready)
         setupGroup = group(column, 18);

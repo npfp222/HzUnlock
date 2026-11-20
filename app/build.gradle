@@ -24,8 +24,8 @@ android {
         applicationId 'io.github.npfp222.hzunlock'
         minSdk 34
         targetSdk 36
-        versionCode 11
-        versionName '1.0.0'
+        versionCode 12
+        versionName '1.0.1'
     }
 
     signingConfigs {
