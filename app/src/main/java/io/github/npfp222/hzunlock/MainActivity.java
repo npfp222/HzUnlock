@@ -52,6 +52,7 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
     static final String ACTION_TOGGLE = "io.github.npfp222.hzunlock.TOGGLE";
     private static final int PERMISSION = 32;
     private static final String AUTHOR = "npfp222";
+    private static final String AUTHOR_URL = "https://github.com/npfp222";
     private static final String REPO_URL = "https://github.com/npfp222/HzUnlock";
     private static final int[] DEFAULT_STOPS = {24, 30, 48, 60, 80, 120, 240};
 
@@ -501,9 +502,15 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         // About
         header(column, "ABOUT");
         LinearLayout about = group(column, 6);
+        TextView developer = new TextView(this);
+        developer.setText(AUTHOR);
+        linkRow(about, "Developer", developer, v -> openUri(AUTHOR_URL));
+        separator(about);
         TextView source = new TextView(this);
         source.setText("GitHub");
         linkRow(about, "Source Code", source, v -> openUri(REPO_URL));
+        separator(about);
+        linkRow(about, "Report an Issue", null, v -> reportIssue());
 
         version = label(column, "", 13, c.secondary, Typeface.NORMAL);
         version.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -834,6 +841,19 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
     private void copyReport() {
         getSystemService(ClipboardManager.class).setPrimaryClip(ClipData.newPlainText("HzUnlock report", report));
         Toast.makeText(this, "Report copied", Toast.LENGTH_SHORT).show();
+    }
+
+    /** Opens a new GitHub issue with this phone's compatibility report already filled in. */
+    private void reportIssue() {
+        String details = report.isEmpty()
+                ? "HzUnlock " + BuildConfig.VERSION_NAME + "\n" + android.os.Build.MANUFACTURER + " "
+                        + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE
+                        + "\n(Not connected to Shizuku)"
+                : report;
+        String body = "**Compatibility report**\n```\n" + details + "\n```\n\n"
+                + "**Monitor and connection** (for example: Odyssey G40B, USB-C to DisplayPort hub):\n\n\n"
+                + "**What happened:**\n";
+        openUri(REPO_URL + "/issues/new?body=" + Uri.encode(body));
     }
 
     private void addTile() {
