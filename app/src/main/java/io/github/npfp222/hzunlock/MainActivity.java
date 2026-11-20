@@ -93,6 +93,7 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
     private TextView statusLine;
     private LinearLayout reconnectGroup;
     private TextView reconnectText;
+    private TextView reconnectButton;
     private Switch restoreSwitch;
     private Switch coolSwitch;
     private Switch fixSwitch;
@@ -454,9 +455,9 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         reconnectGroup = group(column, 18);
         reconnectGroup.setPadding(dp(16), dp(14), dp(16), dp(14));
         reconnectText = label(reconnectGroup, "", 15, c.label, Typeface.NORMAL);
-        TextView fix = label(reconnectGroup, "Reconnect Monitor", 17, c.accent, Typeface.NORMAL);
-        top(fix, 10);
-        fix.setOnClickListener(v -> command(IDisplayService::reconnectMonitor));
+        reconnectButton = label(reconnectGroup, "Reconnect Monitor", 17, c.accent, Typeface.NORMAL);
+        top(reconnectButton, 10);
+        reconnectButton.setOnClickListener(v -> command(IDisplayService::reconnectMonitor));
 
         // Settings
         header(column, "SETTINGS");
@@ -746,17 +747,47 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         statusLine.setText(status);
         statusLine.setTextColor(alert ? c.warn : c.secondary);
 
-        boolean slow = connected && monitor != null && monitor.optBoolean("needsReconnect") && !state.optBoolean("reconnecting");
-        reconnectGroup.setVisibility(slow ? View.VISIBLE : View.GONE);
-        if (slow) {
-            reconnectText.setText(String.format(Locale.US, "The monitor connected at %d Hz. Reconnect it to reach %d Hz.",
-                    Math.round(monitor.optDouble("linkHz")), Math.round(monitor.optDouble("fastestHz"))));
+        String connection = connected && monitor != null && !state.optBoolean("reconnecting") ? connectionAdvice(monitor) : null;
+        reconnectGroup.setVisibility(connection != null ? View.VISIBLE : View.GONE);
+        if (connection != null) {
+            reconnectText.setText(connection);
+            reconnectButton.setVisibility(monitor.optBoolean("needsReconnect") ? View.VISIBLE : View.GONE);
         }
         reconnectRow.setEnabled(connected && monitor != null && !busy);
         reconnectRow.setAlpha(reconnectRow.isEnabled() ? 1f : 0.4f);
 
         renderCompatibility(caps, monitor);
         version.setText("HzUnlock " + BuildConfig.VERSION_NAME);
+    }
+
+    /**
+     * Plain advice about the monitor's connection, or null when there's nothing to say: a
+     * reconnect that may reach a faster mode, a connection that tops out below the monitor's
+     * fastest mode, a faster mode at a lower resolution, or a monitor that only offers 60 Hz.
+     */
+    private static String connectionAdvice(JSONObject monitor) {
+        long link = Math.round(monitor.optDouble("linkHz"));
+        long fastest = Math.round(monitor.optDouble("fastestHz"));
+        String advice = null;
+        if (monitor.has("limitedHz")) {
+            advice = String.format(Locale.US, "This connection tops out at %d Hz. The monitor lists %d Hz, but it came "
+                    + "back at %d Hz after reconnecting, which usually means the hub or cable can't carry more. "
+                    + "HzUnlock stays at %d Hz.", link, fastest, link, link);
+        } else if (monitor.optBoolean("needsReconnect")) {
+            advice = String.format(Locale.US, "The monitor connected at %d Hz. Reconnect it to reach %d Hz.", link, fastest);
+        }
+        JSONObject lower = monitor.optJSONObject("lowerRes");
+        if (lower != null) {
+            String hint = String.format(Locale.US, "Your monitor can do %d Hz at %d × %d. Lower DeX's screen "
+                            + "resolution to use it.", Math.round(lower.optDouble("hz")), lower.optInt("width"),
+                    lower.optInt("height"));
+            advice = advice == null ? hint : advice + "\n\n" + hint;
+        } else if (advice == null && link <= 61 && monitor.optInt("maxHz", (int) fastest) <= 61) {
+            advice = "Your monitor only offers 60 Hz over this connection, so there's no faster mode to unlock. "
+                    + "The hub, cable, or monitor sets this limit, not the phone. Try a cable or hub made for "
+                    + "high refresh rates, and check that high refresh is on in the monitor's own menu.";
+        }
+        return advice;
     }
 
     private void renderCompatibility(JSONObject caps, JSONObject monitor) {
@@ -772,9 +803,12 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         compatibilityValue.setText(monitorTiming && phoneRates ? "Full" : monitorTiming || phoneRates ? "Partial" : "Limited");
 
         String full = monitor != null ? Math.round(monitor.optDouble("linkHz")) + " Hz" : "the monitor's rate";
+        String noTiming = "none".equals(caps.optString("codes"))
+                ? "This One UI version doesn't have Samsung's call for moving app timing to the monitor, so apps top out at the phone screen's rate."
+                : "This phone didn't accept moving app timing to the monitor, so apps top out at the phone screen's rate.";
         Object[][] rows = {
                 {highRes, "High-refresh modes", highRes ? "DeX can use the monitor's fast modes." : "DeX's mode unlock isn't available."},
-                {monitorTiming, "Full monitor rate", monitorTiming ? "Apps can run at " + full + "." : "Apps top out at the phone screen's rate."},
+                {monitorTiming, "Full monitor rate", monitorTiming ? "Apps can run at " + full + "." : noTiming},
                 {phoneRates, "Lower rates", phoneRates ? "The slider can pace apps from the phone screen." : "Rate control isn't available."},
                 {heat, "Heat protection", heat ? "HzUnlock can see the phone's temperature." : "Temperature isn't readable."},
         };
@@ -807,9 +841,22 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         text.append("Timing calls: ").append(caps.optString("codes"))
                 .append(caps.optBoolean("monitorTimingVerified") ? " (verified)" : "").append('\n')
                 .append("Access: ").append(caps.optBoolean("root") ? "root" : "ADB shell").append('\n');
+        float target = prefs.target();
+        text.append("Settings: rate ").append(target <= 0 ? "fastest" : Math.round(target) + " Hz")
+                .append(", Fix Slow Connections ").append(prefs.autoReconnect() ? "on" : "off")
+                .append(", Cool Down ").append(prefs.coolDown() ? "on" : "off").append('\n');
         if (monitor != null) {
             text.append(String.format(Locale.US, "Monitor: %s %dx%d @ %.0f Hz (fastest %.0f Hz)\n", monitor.optString("name"),
                     monitor.optInt("width"), monitor.optInt("height"), monitor.optDouble("linkHz"), monitor.optDouble("fastestHz")));
+            JSONArray rates = monitor.optJSONArray("rates");
+            if (rates != null) {
+                text.append(String.format(Locale.US, "Rates at %dx%d: ", monitor.optInt("width"), monitor.optInt("height")))
+                        .append(rates.toString().replace(",", ", ")).append('\n');
+            }
+            if (monitor.has("modes")) text.append("Fastest per resolution: ").append(monitor.optString("modes")).append('\n');
+            if (monitor.has("limitedHz")) {
+                text.append(String.format(Locale.US, "Connection: stays at %.0f Hz after reconnecting\n", monitor.optDouble("limitedHz")));
+            }
         }
         text.append("Stops: ").append(Arrays.toString(stops));
         report = text.toString();

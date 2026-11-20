@@ -13,7 +13,7 @@ HzUnlock unlocks your monitor's full refresh rate in wired Samsung DeX. Out of t
 
 ## Compatibility
 
-HzUnlock detects what each phone supports and uses only that. **Compatibility** in the app shows the result, and **Copy Report** copies it for bug reports.
+HzUnlock detects what each phone supports and uses only that. **Compatibility** in the app shows the result, and **Copy Report** copies it for bug reports, including the monitor's fastest rate at each resolution so connection limits show up.
 
 | Level | What works | Needs |
 | --- | --- | --- |
@@ -23,7 +23,7 @@ HzUnlock detects what each phone supports and uses only that. **Compatibility** 
 
 **Verified:** Galaxy S24 Ultra (SM-S928U, Android 17 / One UI 9) with an Odyssey G40B at 1080p/240 Hz over a USB-C DisplayPort hub, at the Full level. Other Samsung phones, tablets, and foldables are expected to work at the level they report, but haven't been tested. Neither have rates above 240 Hz. Please open an issue with your Compatibility report.
 
-High refresh also depends on the cable or hub. Some HDMI adapters stop at 120 Hz, and USB-C hubs that keep USB 3 data give DisplayPort only two lanes, which limits bandwidth.
+High refresh also depends on the cable or hub. Some HDMI adapters stop at 120 Hz, and USB-C hubs that keep USB 3 data give DisplayPort only two lanes, which limits bandwidth (1440p at 144 Hz usually needs all four). The slider only offers rates the current connection really runs at.
 
 ## Features
 
@@ -41,7 +41,8 @@ High refresh also depends on the cable or hub. Some HDMI adapters stop at 120 Hz
 - **Launcher shortcut.** Long-press the app icon and choose **Toggle high refresh**.
 - **Restore Automatically.** After Shizuku restarts, for example after a reboot, high refresh comes back the next time you open the app or its tile.
 - **Cool Down When Hot** (off by default). When Android reports moderate heat, the rate drops to 120 Hz at most; at severe heat, to 60 Hz. It goes back up after 30 seconds of cooler readings.
-- **Fix Slow Connections** (off by default). Reconnects the monitor when it comes up below your chosen rate. **Reconnect Monitor** is also available as a button.
+- **Fix Slow Connections** (off by default). If the monitor comes up below its fastest mode, HzUnlock reconnects it once per plug-in. If it comes back at the same rate, HzUnlock stops trying and tells you the connection tops out there. **Reconnect Monitor** is also available as a button.
+- **Connection hints.** When the monitor only offers 60 Hz over the current hub or cable, or reaches a faster rate at a lower resolution, HzUnlock says so.
 - An iOS-style design that follows the system light/dark theme and fits phone screens and DeX windows.
 
 ## How it works
