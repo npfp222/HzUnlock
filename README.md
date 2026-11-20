@@ -1,8 +1,13 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/hzunlock-header-dark.png">
+  <img src="docs/images/hzunlock-header-light.png" alt="HzUnlock running on a Galaxy phone, driving a monitor at 240 Hz in Samsung DeX" width="100%">
+</picture>
+
 # HzUnlock
 
-HzUnlock unlocks your monitor's full refresh rate in wired Samsung DeX. Out of the box, DeX keeps apps at 60 Hz. HzUnlock lets them run at up to the monitor's own rate (240 Hz on the tested setup), or any lower smooth rate you choose. It runs through **[Shizuku](https://shizuku.rikka.app/)** with Wireless debugging, so root is optional. There is no upper limit: the top rate is whatever the monitor connects at.
+HzUnlock unlocks your monitor's full refresh rate in wired Samsung DeX. Out of the box, DeX keeps apps at 60 Hz. HzUnlock lets them run at up to the monitor's own rate (240 Hz on the tested setup), or any lower rate you choose. It runs through **[Shizuku](https://shizuku.rikka.app/)** with Wireless debugging, so root is optional. There is no upper limit: the top rate is whatever the monitor connects at.
 
-> HzUnlock is an independent project. It isn't affiliated with or endorsed by Samsung. It changes runtime display settings through hidden system interfaces. Turning it off, stopping Shizuku, or rebooting returns everything to Android's defaults.
+> HzUnlock is an independent project. It isn't affiliated with or endorsed by Samsung. It changes runtime display settings through hidden system interfaces. Turning it off or rebooting returns everything to Android's defaults.
 
 ## Install
 
@@ -17,8 +22,8 @@ HzUnlock detects what each phone supports and uses only that. **Compatibility** 
 
 | Level | What works | Needs |
 | --- | --- | --- |
-| **Full** | Apps at the monitor's full rate, plus every lower smooth rate | Samsung's pacesetter calls in `libgui.so`, and SurfaceFlinger reporting their state |
-| **Partial** | Apps at up to the phone screen's fastest rate (often 120 Hz) and the lower smooth rates | Hidden `SurfaceControl` display-mode APIs |
+| **Full** | Apps at the monitor's full rate, plus the phone screen's lower rates | Samsung's pacesetter calls in `libgui.so`, and SurfaceFlinger reporting their state |
+| **Partial** | Apps at up to the phone screen's fastest rate (often 120 Hz) and its lower rates | Hidden `SurfaceControl` display-mode APIs |
 | **Limited** | DeX's high-refresh mode unlock only | Samsung DeX |
 
 **Verified:** Galaxy S24 Ultra (SM-S928U, Android 17 / One UI 9) with an Odyssey G40B at 1080p/240 Hz over a USB-C DisplayPort hub, at the Full level. Other Samsung phones, tablets, and foldables are expected to work at the level they report, but haven't been tested. Neither have rates above 240 Hz. Please open an issue with your Compatibility report.
@@ -27,16 +32,16 @@ High refresh also depends on the cable or hub. Some HDMI adapters stop at 120 Hz
 
 ## Features
 
-- **One switch.** **High Refresh** unlocks DeX's high-refresh modes, lifts DeX's 60 Hz cap on apps, and sets the rate they run at. The session keeps running inside Shizuku after you close the app.
-- **One slider.** Its stops are rates the system really runs at: the monitor's own rate, plus the phone panel's real modes that divide it evenly, so every frame stays up for the same number of monitor refreshes. The monitor's signal stays at its connected rate, and apps and animations run at the chosen rate.
+- **One switch.** **High Refresh** unlocks DeX's high-refresh modes, lifts DeX's 60 Hz cap on apps, and sets the rate they run at. The session keeps running inside Shizuku after you close the app. Turning it off also switches DeX back to its standard modes, so the monitor reconnects at its usual rate. That's also the fix if the monitor goes black after you turn it on: some phones list modes they can't drive.
+- **One slider.** Its stops are rates the system really runs at: the monitor's own rate, plus the phone panel's real modes below it. The monitor's signal stays at its connected rate, and apps and animations run at the chosen rate. A rate that doesn't divide the monitor's rate evenly (120 on a 144 Hz monitor, say) works like 60 fps video on a 144 Hz screen: frames stay up for an uneven number of refreshes, and the app says so.
 
-  | Monitor | Slider stops |
+  | Monitor | Slider stops on a Galaxy S24 Ultra |
   | --- | --- |
-  | 360 Hz | 24 · 30 · 60 · 120 · 360 |
+  | 288 Hz | 24 · 30 · 48 · 60 · 80 · 120 · 288 |
   | 240 Hz | 24 · 30 · 48 · 60 · 80 · 120 · 240 |
-  | 144 Hz | 24 · 48 · 144 |
-  | 120 Hz | 24 · 30 · 60 · 120 |
-  | 165 Hz | 165 only (no even divisors) |
+  | 165 Hz | 24 · 30 · 48 · 60 · 80 · 120 · 165 |
+  | 144 Hz | 24 · 30 · 48 · 60 · 80 · 120 · 144 |
+  | 120 Hz | 24 · 30 · 48 · 60 · 80 · 120 |
 - **Quick Settings tile.** Toggle high refresh from the notification shade. The tile shows the live rate. Long-press it to open the app.
 - **Launcher shortcut.** Long-press the app icon and choose **Toggle high refresh**.
 - **Restore Automatically.** After Shizuku restarts, for example after a reboot, high refresh comes back the next time you open the app or its tile.
@@ -44,7 +49,7 @@ High refresh also depends on the cable or hub. Some HDMI adapters stop at 120 Hz
 - **Fix Slow Connections** (off by default). If the monitor comes up below its fastest mode, HzUnlock reconnects it once per plug-in. If it comes back at the same rate, HzUnlock stops trying and tells you the connection tops out there. **Reconnect Monitor** is also available as a button.
 - **Connection hints.** When the monitor only offers 60 Hz over the current hub or cable, or reaches a faster rate at a lower resolution, HzUnlock says so.
 - An iOS-style design that follows the system light/dark theme and fits phone screens and DeX windows.
-- **Diagnostics.** A report you can read before sharing: the compatibility summary, a timestamped log of what the session did (monitors connecting, reconnects, rate changes, heat, errors), any saved crash of the app or its display service, and optionally the display-related lines of Android's log with e-mail addresses and long IDs masked. Copy it, share it, or open a prefilled GitHub issue. If HzUnlock crashed, it offers the report the next time you open it.
+- **Diagnostics.** A report you can read before sharing: the compatibility summary, a timestamped log of what the session did (monitors connecting, reconnects, rate changes, heat, errors; kept on the phone, so it survives a restart after a freeze), any saved crash of the app or its display service, and optionally the display-related lines of Android's log with e-mail addresses and long IDs masked. Copy it, share it, or open a prefilled GitHub issue. If HzUnlock crashed, it offers the report the next time you open it.
 - **Update check** (on by default). Once a day HzUnlock asks GitHub about new releases and offers to download major ones (checkpoint releases). Small updates don't pop up. **Check for Updates** under About checks right away and shows every newer release.
 
 ## How it works
@@ -53,6 +58,7 @@ The ADB shell UID holds `ACCESS_SURFACE_FLINGER`, which allows the calls below. 
 
 - **Pacesetter.** Apps render on the vsync of SurfaceFlinger's pacesetter display. Samsung's `forcePacesetter` / `resetForcedPacesetter` calls choose it. Their numbers aren't hard-coded. `SurfaceFlingerCodes` reads the dynamic symbol table of `/system/lib64/libgui.so`, finds `BpSurfaceComposer::forcePacesetter(long)` and `::resetForcedPacesetter()`, and decodes the `MOVZ W1, #code` that each loads before `transact()`. The result is used only when each function has exactly one such constant, the two are adjacent, and SurfaceFlinger's scheduler dump has a `forcedPacesetterDisplayId` field. After every call HzUnlock reads that field back, and on any mismatch it stops using the calls and paces apps from the phone screen instead.
 - **Rates.** At the monitor's rate, the monitor is the pacesetter. At any lower rate, and at every rate when pacesetter control is unavailable, the phone panel paces apps, held at a real mode with `SurfaceControl.setDesiredDisplayModeSpecs`. The policy is edited by setting fields on a freshly read copy, not through constructors that change between Android releases. On foldables, the panel that's switched on is used. SurfaceFlinger ignores policy changes on an external display after it connects, so HzUnlock doesn't touch the monitor's policy.
+- **Safety.** App timing is only forced onto the monitor when that gains something: never on a 60 Hz connection, and never while DeX may still drop and re-add the monitor (the first seconds after it appears, and during and just after a reconnect, when timing moves back to the phone first).
 - **DeX.** `enableHighResolutionsForExternalDesktop` lifts DeX's timing filter when the build has it.
 - **Heat.** `dumpsys thermalservice` provides the thermal status.
 

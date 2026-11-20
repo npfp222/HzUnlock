@@ -48,6 +48,16 @@ final class RefreshSession {
     private static final long RECONNECT_CHECK_MS = 10_000;
     /** Re-applying DeX's high-refresh unlock on re-attach is limited to once in this window. */
     private static final long UNLOCK_GAP_MS = 60_000;
+    /**
+     * App timing stays with Android this long after a monitor appears, and after a reconnect ends,
+     * so it's never forced onto a monitor that DeX is still dropping and re-adding.
+     */
+    private static final long ATTACH_SETTLE_MS = 3_000;
+    private static final long TIMING_SETTLE_MS = 10_000;
+    /** At or below this connection rate, moving app timing to the monitor gains nothing over DeX's 60 Hz. */
+    private static final float DEX_RATE = 61f;
+    /** How often to confirm SurfaceFlinger still has the timing source HzUnlock chose. */
+    private static final long VERIFY_MS = 5_000;
     private static final float LOWEST_RATE = 24f;
     private static final String PROP = "vendor.display.hdmi_cfg_idx";
     private static final String DP_DEX = "/sys/class/dp_sec/dex";
@@ -93,6 +103,17 @@ final class RefreshSession {
     private volatile long reconnectEndedAt;
     /** True after a reconnect until the rate it reached has been checked. */
     private volatile boolean checkReconnect;
+
+    /** True while the session runs; a reconnect thread checks it before switching DeX's modes back on. */
+    private volatile boolean active;
+    /** True once this session switched on DeX's high-refresh modes, so turning off can switch them back. */
+    private volatile boolean highResOn;
+    /** False until the first tick, so monitors already connected at start don't wait to settle. */
+    private boolean primed;
+    /** True while app timing waits for a monitor to settle. */
+    private boolean waiting;
+    /** When the forced timing source was last read back from SurfaceFlinger. */
+    private long verifiedAt;
 
     private volatile float targetHz = 1000f;
     private volatile boolean autoReconnect;
@@ -153,6 +174,8 @@ final class RefreshSession {
             log.add("High refresh on. Monitor timing " + (noPacesetter ? "unavailable" : "available")
                     + " (calls " + DisplayControl.pacesetterCodes() + "), phone rates "
                     + (DisplayControl.canHoldPolicy() ? "available" : "unavailable") + ", " + (root ? "root" : "ADB shell") + ".");
+            active = true;
+            primed = false;
             unlockHighResolution("start");
             worker = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, "hzunlock-session"));
             worker.scheduleWithFixedDelay(this::tick, 0, TICK_MS, TimeUnit.MILLISECONDS);
@@ -160,16 +183,24 @@ final class RefreshSession {
         } catch (Exception e) {
             if (worker != null) worker.shutdownNow();
             worker = null;
+            active = false;
             closeLocks();
             log.add("Couldn't turn on high refresh: " + DisplayControl.describe(e));
             return "Couldn't turn on high refresh. " + DisplayControl.describe(e);
         }
     }
 
-    synchronized String stop() {
+    /**
+     * Ends the session and puts back Android's timing and refresh policies. With {@code restoreDex},
+     * also switches DeX back to its standard modes when this session had switched on the faster
+     * ones, which reconnects the monitor. That's the way back from a mode the phone can't drive,
+     * which can leave the monitor black.
+     */
+    synchronized String stop(boolean restoreDex) {
         if (worker == null) return "High refresh is off.";
         worker.shutdownNow();
         worker = null;
+        active = false;
         String problem = null;
         try {
             setPacesetter(null);
@@ -187,6 +218,17 @@ final class RefreshSession {
             }
         }
         writtenStartMode = null;
+        if (restoreDex && highResOn && DisplayControl.hasHighResolutionSwitch()) {
+            try {
+                DisplayControl.setHighResolution(false);
+                log.add("Switched DeX back to its standard modes.");
+            } catch (Exception e) {
+                problem = "DeX's standard modes";
+                log.add("Couldn't switch DeX back to its standard modes: " + DisplayControl.describe(e));
+            }
+        }
+        highResOn = false;
+        waiting = false;
         notice = null;
         appHz = 0;
         pacesetter = null;
@@ -207,6 +249,8 @@ final class RefreshSession {
         if (!DisplayControl.hasHighResolutionSwitch()) return;
         try {
             DisplayControl.setHighResolution(true);
+            highResOn = true;
+            lastUnlock = SystemClock.elapsedRealtime();
             log.add("Switched on DeX's high-refresh modes (" + reason + ").");
         } catch (Exception e) {
             // Older DeX builds expose high-refresh modes without the switch.
@@ -238,8 +282,10 @@ final class RefreshSession {
                     log.add("Monitor mode changed: " + display.name() + " " + mode + ".");
                 }
                 loggedModes.put(display.id(), mode);
-                connectedSince.putIfAbsent(display.id(), now);
+                // A monitor already connected when the session starts has nothing left to settle.
+                connectedSince.putIfAbsent(display.id(), primed ? now : now - ATTACH_SETTLE_MS);
             }
+            primed = true;
             for (Long id : seenMonitors) {
                 if (!present.contains(id)) {
                     log.add("Monitor disconnected: " + monitorNames.getOrDefault(id, "external display") + ".");
@@ -277,8 +323,18 @@ final class RefreshSession {
                 if (phone != null) release(phone.id());
                 setPacesetter(null);
                 appHz = 0;
+                waiting = false;
                 logRate("No monitor; the phone runs at Android's own rates.");
+            } else if (timingOnHold(lead, now)) {
+                // DeX may still drop and re-add the monitor. Keep app timing with Android until it
+                // settles, so SurfaceFlinger never loses a forced timing source mid-change.
+                if (phone != null) release(phone.id());
+                setPacesetter(null);
+                appHz = 0;
+                waiting = true;
+                logRate("Waiting for the monitor to settle; app timing stays with Android.");
             } else {
+                waiting = false;
                 float link = lead.active().hz();
                 float want = effectiveTarget();
                 boolean throttled = want < targetHz;
@@ -286,24 +342,34 @@ final class RefreshSession {
                 if (phone != null && DisplayControl.canHoldPolicy() && (noPacesetter || want < link - 1f)) {
                     // Without pacesetter control the phone panel always paces, up to the monitor's rate.
                     float ceiling = noPacesetter ? link + 1f : link - 1f;
-                    phoneMode = phoneModeFor(phone, want, link, ceiling, !throttled);
-                    if (phoneMode == null && noPacesetter) phoneMode = phoneModeFor(phone, want, link, ceiling, false);
+                    phoneMode = phoneModeFor(phone, want, ceiling);
                 }
                 if (phoneMode != null) {
                     hold(phone.id(), DisplayControl.token(phone.id()), phoneMode);
                     setPacesetter(phone.id());
                     appHz = phoneMode.hz();
+                    logRate(String.format(Locale.US, "Apps run at %d Hz, paced by the phone screen%s.",
+                            Math.round(appHz), throttled ? ", lowered for heat" : ""));
+                } else if (link <= DEX_RATE) {
+                    // A 60 Hz connection gains nothing from moving app timing to the monitor, so
+                    // leave it with Android rather than force a timing source that can disappear.
+                    if (phone != null) release(phone.id());
+                    setPacesetter(null);
+                    appHz = link;
+                    logRate(String.format(Locale.US, "Monitor at %d Hz; app timing stays with Android.", Math.round(link)));
                 } else {
                     if (phone != null) release(phone.id());
                     setPacesetter(lead.id());
                     appHz = noPacesetter ? (phone != null ? phone.active().hz() : 60f) : link;
+                    logRate(String.format(Locale.US, "Apps run at %d Hz, paced by the %s.", Math.round(appHz),
+                            noPacesetter ? "phone screen (no monitor timing)" : "monitor"));
                 }
-                logRate(String.format(Locale.US, "Apps run at %d Hz, paced by the %s%s.", Math.round(appHz),
-                        phoneMode != null ? "phone screen" : noPacesetter ? "phone screen (no monitor timing)" : "monitor",
-                        throttled ? ", lowered for heat" : ""));
+            }
+            if (lead != null) {
                 checkAfterReconnect(lead, now);
                 if (needsReconnect(lead)) onSlowConnection(lead, now);
             }
+            verifyPacesetter(now);
             if (notice != null && notice.startsWith("Display update failed")) notice = null;
         } catch (Throwable e) {
             // Catch errors too: an uncaught one would silently cancel the scheduled tick.
@@ -344,24 +410,40 @@ final class RefreshSession {
 
     /**
      * The phone panel's fastest real mode at its current resolution between 24 Hz and
-     * {@code ceiling} that doesn't exceed the target. With {@code smoothOnly}, only modes that
-     * divide the monitor's rate evenly qualify, so each frame stays up for the same number of
-     * monitor refreshes. Returns null when nothing qualifies.
+     * {@code ceiling} that doesn't exceed the target, else its slowest one in that range. Rates
+     * that don't divide the monitor's rate evenly are allowed: frames then stay up for an uneven
+     * number of monitor refreshes, like 60 fps video on a 144 Hz monitor, which beats having no
+     * choice between 288 and 48 Hz. Returns null when the panel has no mode in range.
      */
-    private static DisplayControl.Mode phoneModeFor(DisplayControl.Info phone, float target, float linkHz,
-                                                    float ceiling, boolean smoothOnly) {
+    private static DisplayControl.Mode phoneModeFor(DisplayControl.Info phone, float target, float ceiling) {
         DisplayControl.Mode best = null;
         DisplayControl.Mode slowest = null;
+        for (DisplayControl.Mode mode : phoneRates(phone, ceiling)) {
+            if (slowest == null || mode.hz() < slowest.hz()) slowest = mode;
+            if (mode.hz() <= target + 0.5f && (best == null || mode.hz() > best.hz())) best = mode;
+        }
+        return best != null ? best : slowest;
+    }
+
+    /** The phone panel's real modes at its current resolution between 24 Hz and {@code ceiling}. */
+    private static List<DisplayControl.Mode> phoneRates(DisplayControl.Info phone, float ceiling) {
+        List<DisplayControl.Mode> rates = new ArrayList<>();
         for (DisplayControl.Mode mode : phone.modes()) {
             if (mode.id() < 0) continue;
             if (mode.width() != phone.active().width() || mode.height() != phone.active().height()) continue;
             if (mode.hz() < LOWEST_RATE - 0.5f || mode.hz() > ceiling) continue;
-            if (smoothOnly && !smooth(linkHz, mode.hz())) continue;
-            if (slowest == null || mode.hz() < slowest.hz()) slowest = mode;
-            if (mode.hz() <= target + 0.5f && (best == null || mode.hz() > best.hz())) best = mode;
+            rates.add(mode);
         }
-        if (best != null) return best;
-        return smoothOnly ? null : slowest;
+        return rates;
+    }
+
+    /** True while app timing should stay with Android because DeX may still drop and re-add the monitor. */
+    private boolean timingOnHold(DisplayControl.Info lead, long now) {
+        if (reconnecting) return true;
+        long ended = reconnectEndedAt;
+        if (ended != 0 && now - ended < TIMING_SETTLE_MS) return true;
+        Long since = connectedSince.get(lead.id());
+        return since != null && now - since < ATTACH_SETTLE_MS;
     }
 
     /** True when {@code hz} divides {@code linkHz} into a whole number of refreshes. */
@@ -454,6 +536,21 @@ final class RefreshSession {
         pacesetterVerified = true;
     }
 
+    /**
+     * Every few seconds, confirms that SurfaceFlinger still uses the timing source HzUnlock chose.
+     * DeX, SurfaceFlinger itself, or another tool can change it; when that happens, HzUnlock
+     * applies its choice again on the next tick and notes it in the event log.
+     */
+    private void verifyPacesetter(long now) {
+        if (noPacesetter || pacesetterStale || now - verifiedAt < VERIFY_MS) return;
+        verifiedAt = now;
+        DisplayControl.Forced forced = DisplayControl.forcedPacesetter();
+        if (!forced.supported() || Objects.equals(forced.display(), pacesetter)) return;
+        log.add("App timing was moved outside HzUnlock (now " + (forced.display() == null ? "Android's choice"
+                : forced.display()) + "); setting it again.");
+        pacesetterStale = true;
+    }
+
     private void disablePacesetter() {
         log.add("SurfaceFlinger didn't confirm the forced pacesetter; pacing from the phone screen from now on.");
         noPacesetter = true;
@@ -527,6 +624,7 @@ final class RefreshSession {
     }
 
     private synchronized String reconnect(String reason) {
+        if (worker == null) return "Turn on High Refresh first.";
         if (reconnecting) return "Already reconnecting.";
         if (!(root && new File(DP_DEX).exists()) && !DisplayControl.hasHighResolutionSwitch()) {
             log.add("Reconnect (" + reason + ") unavailable: no DeX high-refresh switch.");
@@ -535,6 +633,12 @@ final class RefreshSession {
         log.add("Reconnecting the monitor (" + reason + ").");
         reconnecting = true;
         checkReconnect = false;
+        // Move app timing off the monitor before DeX drops it, rather than after.
+        try {
+            setPacesetter(null);
+        } catch (Exception e) {
+            log.add("Couldn't release app timing before reconnecting: " + DisplayControl.describe(e));
+        }
         Thread thread = new Thread(() -> {
             boolean switchedOff = false;
             try {
@@ -546,15 +650,19 @@ final class RefreshSession {
                     DisplayControl.setHighResolution(false);
                     switchedOff = true;
                     SystemClock.sleep(5_000);
-                    DisplayControl.setHighResolution(true);
+                    // If high refresh was turned off meanwhile, DeX stays in its standard modes.
+                    if (active) {
+                        DisplayControl.setHighResolution(true);
+                        highResOn = true;
+                    }
                     switchedOff = false;
                 }
             } catch (Exception e) {
                 notice = "Reconnect failed. Unplug the monitor and plug it back in.";
                 log.add("Reconnect failed: " + DisplayControl.describe(e));
             } finally {
-                // Never leave DeX's high-refresh modes switched off.
-                if (switchedOff) {
+                // Never leave DeX's high-refresh modes switched off while high refresh is on.
+                if (switchedOff && active) {
                     try {
                         DisplayControl.setHighResolution(true);
                     } catch (Exception ignored) {
@@ -580,6 +688,7 @@ final class RefreshSession {
         boolean running = worker != null;
         json.put("running", running);
         json.put("reconnecting", reconnecting);
+        if (running && waiting) json.put("waiting", true);
         json.put("targetHz", targetHz);
         if (running && appHz > 0) json.put("appHz", appHz);
         if (running && coolDown && thermalCap < targetHz) json.put("coolingHz", thermalCap);
@@ -604,12 +713,8 @@ final class RefreshSession {
                 TreeSet<Integer> stops = new TreeSet<>();
                 if (!noPacesetter) stops.add(Math.round(link));
                 if (phone != null && DisplayControl.canHoldPolicy()) {
-                    float ceiling = noPacesetter ? link + 1f : link - 1f;
-                    for (DisplayControl.Mode mode : phone.modes()) {
-                        if (mode.id() >= 0 && mode.width() == phone.active().width() && mode.height() == phone.active().height()
-                                && mode.hz() >= LOWEST_RATE - 0.5f && mode.hz() <= ceiling && smooth(link, mode.hz())) {
-                            stops.add(Math.round(mode.hz()));
-                        }
+                    for (DisplayControl.Mode mode : phoneRates(phone, noPacesetter ? link + 1f : link - 1f)) {
+                        stops.add(Math.round(mode.hz()));
                     }
                 }
                 if (stops.isEmpty()) stops.add(Math.round(noPacesetter && phone != null ? phone.fastest().hz() : link));
@@ -623,7 +728,7 @@ final class RefreshSession {
                 monitor.put("height", lead.active().height());
                 monitor.put("linkHz", link);
                 monitor.put("fastestHz", lead.fastest().hz());
-                monitor.put("needsReconnect", needsReconnect(lead));
+                monitor.put("needsReconnect", running && needsReconnect(lead));
                 Float limited = limitedLinks.get(lead.id());
                 if (limited != null && lead.belowFastest()) monitor.put("limitedHz", limited);
                 describeModes(lead, monitor);

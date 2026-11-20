@@ -696,7 +696,7 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         JSONObject monitor = state == null ? null : state.optJSONObject("monitor");
         JSONObject caps = state == null ? null : state.optJSONObject("caps");
 
-        // Slider stops come from the hardware: the monitor's rate plus the phone panel's even divisors of it.
+        // Slider stops come from the hardware: the monitor's rate plus the phone panel's slower rates.
         JSONArray list = state == null ? null : state.optJSONArray("stops");
         if (list != null && list.length() > 0) {
             int[] next = new int[list.length()];
@@ -748,8 +748,16 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
             status = String.format(Locale.US, "Your phone is warm, so apps run at %d Hz until it cools down.",
                     Math.round(state.optDouble("appHz")));
             alert = true;
+        } else if (running && monitor != null && state.optBoolean("waiting")) {
+            status = "Waiting for the monitor to settle…";
         } else if (running && monitor != null && state.has("appHz")) {
-            status = String.format(Locale.US, "Apps and animations run at %d Hz.", Math.round(state.optDouble("appHz")));
+            long app = Math.round(state.optDouble("appHz"));
+            long link = Math.round(monitor.optDouble("linkHz"));
+            status = String.format(Locale.US, "Apps and animations run at %d Hz.", app);
+            if (app > 0 && app < link - 1 && !RefreshSession.smooth(link, app)) {
+                status += String.format(Locale.US, " The monitor runs at %d Hz, so motion is a little less even than at "
+                        + "a rate that divides it.", link);
+            }
         } else if (running) {
             status = "On. Connect a monitor to use it.";
         } else {
@@ -764,7 +772,8 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
             reconnectText.setText(connection);
             reconnectButton.setVisibility(monitor.optBoolean("needsReconnect") ? View.VISIBLE : View.GONE);
         }
-        reconnectRow.setEnabled(connected && monitor != null && !busy);
+        // Reconnecting brings back DeX's faster modes, so it's part of high refresh being on.
+        reconnectRow.setEnabled(running && monitor != null && !busy);
         reconnectRow.setAlpha(reconnectRow.isEnabled() ? 1f : 0.4f);
 
         renderCompatibility(caps, monitor);
@@ -782,10 +791,12 @@ public final class MainActivity extends Activity implements ServiceBridge.Listen
         String advice = null;
         if (monitor.has("limitedHz")) {
             advice = String.format(Locale.US, "This connection tops out at %d Hz. The monitor lists %d Hz, but it came "
-                    + "back at %d Hz after reconnecting, which usually means the hub or cable can't carry more. "
-                    + "HzUnlock stays at %d Hz.", link, fastest, link, link);
+                    + "back at %d Hz after reconnecting. Either the hub or cable can't carry more, or the phone picks "
+                    + "the monitor's default mode, which HzUnlock can't change without root. If the monitor's own "
+                    + "menu has a high refresh or DisplayPort 1.4 setting, turn it on and plug it in again.",
+                    link, fastest, link);
         } else if (monitor.optBoolean("needsReconnect")) {
-            advice = String.format(Locale.US, "The monitor connected at %d Hz. Reconnect it to reach %d Hz.", link, fastest);
+            advice = String.format(Locale.US, "The monitor connected at %d Hz. Reconnect it to try for %d Hz.", link, fastest);
         }
         JSONObject lower = monitor.optJSONObject("lowerRes");
         if (lower != null) {

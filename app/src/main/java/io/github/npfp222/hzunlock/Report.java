@@ -81,6 +81,11 @@ final class Report {
             section(text, "Events (oldest first)");
             if (events == null || events.length() == 0) text.append("(none)");
             else for (int i = 0; i < events.length(); i++) text.append(events.optString(i)).append('\n');
+            String previous = diagnostics.optString("previousEvents");
+            if (!previous.isEmpty()) {
+                section(text, "Events of the display service's previous run (kept across a reboot)");
+                text.append(previous);
+            }
             if (diagnostics.has("crash")) {
                 section(text, "Display service crash");
                 text.append(diagnostics.optString("crash").strip());

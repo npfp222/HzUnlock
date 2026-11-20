@@ -24,6 +24,9 @@ public final class DisplayService extends IDisplayService.Stub {
     /** The last crash of this service. /data/local/tmp is writable for both ADB shell and root. */
     private static final File CRASH_FILE = new File("/data/local/tmp/hzunlock-crash.txt");
     private static final int MAX_CRASH_BYTES = 64 * 1024;
+    /** The event log of this service, and of the one before it (which survives a reboot after a freeze). */
+    private static final File EVENTS_FILE = new File("/data/local/tmp/hzunlock-events.txt");
+    private static final File PREVIOUS_EVENTS_FILE = new File("/data/local/tmp/hzunlock-events-previous.txt");
     private static final int SYSTEM_LOG_LINES = 250;
 
     private final int ownerUid;
@@ -37,6 +40,7 @@ public final class DisplayService extends IDisplayService.Stub {
         session = new RefreshSession(serviceUid == ROOT_UID);
         device = describeDevice();
         installCrashHandler();
+        keepEventLog();
         session.log().add("Display service started (HzUnlock " + BuildConfig.VERSION_NAME + ", uid " + serviceUid + ").");
     }
 
@@ -57,6 +61,17 @@ public final class DisplayService extends IDisplayService.Stub {
             if (previous != null) previous.uncaughtException(thread, failure);
             else System.exit(10);
         });
+    }
+
+    /** Keeps the last service's events as the previous log, then records this service's events to a file. */
+    private void keepEventLog() {
+        if (EVENTS_FILE.isFile() && EVENTS_FILE.length() > 0) {
+            //noinspection ResultOfMethodCallIgnored
+            PREVIOUS_EVENTS_FILE.delete();
+            //noinspection ResultOfMethodCallIgnored
+            EVENTS_FILE.renameTo(PREVIOUS_EVENTS_FILE);
+        }
+        session.log().persistTo(EVENTS_FILE);
     }
 
     private static String describeDevice() {
@@ -110,7 +125,7 @@ public final class DisplayService extends IDisplayService.Stub {
         requireOwner();
         long identity = Binder.clearCallingIdentity();
         try {
-            return session.stop();
+            return session.stop(true);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -146,6 +161,10 @@ public final class DisplayService extends IDisplayService.Stub {
         try {
             JSONObject out = new JSONObject();
             out.put("events", new JSONArray(session.log().entries()));
+            if (PREVIOUS_EVENTS_FILE.isFile()) {
+                out.put("previousEventsAt", PREVIOUS_EVENTS_FILE.lastModified());
+                out.put("previousEvents", readTail(PREVIOUS_EVENTS_FILE));
+            }
             if (CRASH_FILE.isFile()) {
                 out.put("crashAt", CRASH_FILE.lastModified());
                 out.put("crash", readCrash());
@@ -173,6 +192,15 @@ public final class DisplayService extends IDisplayService.Stub {
         return new String(bytes, 0, length, StandardCharsets.UTF_8);
     }
 
+    /** The end of a text file, at most {@link #MAX_CRASH_BYTES}, starting at a whole line. */
+    private static String readTail(File file) throws IOException {
+        byte[] bytes = Files.readAllBytes(file.toPath());
+        int start = Math.max(0, bytes.length - MAX_CRASH_BYTES);
+        String text = new String(bytes, start, bytes.length - start, StandardCharsets.UTF_8);
+        int newline = start > 0 ? text.indexOf('\n') : -1;
+        return (newline >= 0 ? text.substring(newline + 1) : text).strip();
+    }
+
     @Override
     public void clearCrash() {
         requireOwner();
@@ -192,7 +220,9 @@ public final class DisplayService extends IDisplayService.Stub {
         }
         Binder.clearCallingIdentity();
         try {
-            session.stop();
+            // The service is going away (an update, or Shizuku stopping), not the user turning
+            // high refresh off, so leave DeX's modes as they are.
+            session.stop(false);
         } finally {
             System.exit(0);
         }

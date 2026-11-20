@@ -1,0 +1,145 @@
+<!doctype html>
+<!--
+  Source for the README header and social preview.
+  Render (from the repo root):
+    chrome --headless --hide-scrollbars --virtual-time-budget=5000 --window-size=1280,640
+           --force-device-scale-factor=2 --screenshot=out.png "file:///.../header.html#dark"  (or #light)
+  app-screen.png is a real HzUnlock 1.0.2 screenshot from a Galaxy S24 Ultra
+  driving an Odyssey G40B at 240 Hz (status bar blanked).
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=block" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f4f6;
+    --spot: #ffffff;
+    --title: #111113;
+    --text: #6e6e73;
+    --muted: #8e8e93;
+    --rule: #dcdce0;
+    --accent: #1fa74a;
+    --floor: rgba(0,0,0,.22);
+  }
+  html.dark {
+    --bg: #09090a;
+    --spot: #1b1b1e;
+    --title: #f5f5f7;
+    --text: #8e8e93;
+    --muted: #636366;
+    --rule: #2a2a2d;
+    --accent: #30d158;
+    --floor: rgba(0,0,0,.85);
+  }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    position: relative;
+    background:
+      radial-gradient(620px 520px at 79% 42%, var(--spot) 0%, transparent 72%),
+      var(--bg);
+    font-family: "Inter", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+    font-feature-settings: "cv11", "ss01", "tnum";
+    -webkit-font-smoothing: antialiased;
+    color: var(--title);
+  }
+
+  /* ---------- Copy ---------- */
+  .copy { position: absolute; left: 100px; top: 126px; width: 580px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .icon { width: 44px; height: 44px; border-radius: 11px; display: block; }
+  html.dark .icon { box-shadow: 0 0 0 1px rgba(255,255,255,.08); }
+  .brand span { font-size: 22px; font-weight: 600; letter-spacing: -0.015em; }
+
+  h1 {
+    margin-top: 30px;
+    font-size: 56px; line-height: 1.06; font-weight: 600; letter-spacing: -0.038em;
+  }
+  h1 em { font-style: normal; color: var(--text); }
+
+  .spec { margin-top: 38px; display: flex; gap: 0; width: 440px; border-top: 1px solid var(--rule); }
+  .spec div { flex: 1; padding-top: 18px; }
+  .spec div + div { padding-left: 28px; border-left: 1px solid var(--rule); }
+  .spec b { display: block; font-size: 28px; font-weight: 500; letter-spacing: -0.03em; }
+  .spec small { display: block; margin-top: 6px; font-size: 14px; color: var(--muted); letter-spacing: 0; }
+  .spec .before b { color: var(--muted); }
+  .spec .after b { color: var(--title); }
+  .spec .after b i { font-style: normal; color: var(--accent); }
+
+  /* ---------- Phone ---------- */
+  .stage { position: absolute; left: 770px; top: 52px; }
+  .floor {
+    position: absolute; left: 30px; right: 30px; top: 60px; height: 900px;
+    border-radius: 60px; background: var(--floor); filter: blur(40px); transform: translateY(26px);
+  }
+  .frame {                                /* titanium rail */
+    position: relative; width: 410px; height: 880px; border-radius: 52px; padding: 3px;
+    background: linear-gradient(115deg, #9c9ca1 0%, #4a4a4e 18%, #2a2a2c 34%, #77777c 52%, #2f2f31 70%, #5c5c60 86%, #a4a4a9 100%);
+  }
+  html:not(.dark) .frame {
+    background: linear-gradient(115deg, #d8d8dc 0%, #8e8e93 18%, #5a5a5e 34%, #b9b9be 52%, #6a6a6e 70%, #a2a2a7 86%, #e2e2e6 100%);
+  }
+  .bezel {
+    width: 100%; height: 100%; border-radius: 49px; padding: 9px; background: #000;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+  }
+  .screen { position: relative; width: 386px; height: 856px; border-radius: 40px; overflow: hidden; background: #000; }
+  .screen img { width: 386px; display: block; }
+  .glass {                                  /* faint reflection across the glass */
+    position: absolute; inset: 0;
+    background: linear-gradient(118deg, rgba(255,255,255,.07) 0%, rgba(255,255,255,.02) 30%, transparent 31%);
+  }
+  .camera {
+    position: absolute; left: 50%; top: 14px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #2a2a33 0 25%, #0a0a0c 60%);
+    box-shadow: 0 0 0 1.5px #151517;
+  }
+  .key { position: absolute; right: -3px; width: 3px; border-radius: 0 2px 2px 0;
+         background: linear-gradient(90deg, #3a3a3d, #8a8a8f); }
+  html:not(.dark) .key { background: linear-gradient(90deg, #8e8e93, #d1d1d6); }
+  .key.vol { top: 168px; height: 72px; }
+  .key.pwr { top: 262px; height: 44px; }
+
+  .url { position: absolute; left: 100px; bottom: 50px; font-size: 15px; color: var(--muted); letter-spacing: 0.005em; }
+</style>
+<script>
+  if (location.hash === "#dark") document.documentElement.className = "dark";
+</script>
+</head>
+<body>
+  <div class="copy">
+    <div class="brand">
+      <svg class="icon" viewBox="0 0 48 48" aria-hidden="true">
+        <rect width="48" height="48" fill="#172126"/>
+        <path fill="#95E9BE" d="M9,11h30v22h-13v3h6v2h-16v-2h6v-3h-13zM12,14v16h24v-16z"/>
+        <path fill="none" stroke="#95E9BE" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" d="M15,23h4l3,-5 4,8 3,-5h4"/>
+      </svg>
+      <span>HzUnlock</span>
+    </div>
+    <h1>Your monitor's<br>full refresh rate<br><em>in Samsung DeX.</em></h1>
+    <div class="spec">
+      <div class="before"><b>60 Hz</b><small>DeX on its own</small></div>
+      <div class="after"><b>240 Hz</b><small>With HzUnlock</small></div>
+    </div>
+  </div>
+  <div class="url">github.com/npfp222/HzUnlock</div>
+
+  <div class="stage">
+    <div class="floor"></div>
+    <div class="frame">
+      <div class="bezel">
+        <div class="screen">
+          <img src="app-screen.png" alt="">
+          <div class="glass"></div>
+          <div class="camera"></div>
+        </div>
+      </div>
+      <div class="key vol"></div>
+      <div class="key pwr"></div>
+    </div>
+  </div>
+</body>
+</html>
