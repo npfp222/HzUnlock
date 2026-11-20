@@ -1,0 +1,48 @@
+Selected refresh-mode evidence from the larger early captures.
+
+dex_hires_display.txt
+1985: #15 11-02 15:46:50.936  Removing refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 363583795 (19202 ms ago)},
+1987: #14 11-02 15:46:31.733  Adding refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 363583795 (now)},
+
+dex_pref_display.txt
+2442: RefreshRateTokens:[{ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 363888465 (20146 ms ago)}]
+2443: #15 11-02 15:51:36.404  Adding refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 363888465 (now)},
+2445: #14 11-02 15:51:33.495  Removing refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 363885038 (519 ms ago)},
+2447: #13 11-02 15:51:32.977  Adding refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 363885038 (now)},
+2449: #12 11-02 15:51:22.174  Removing refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 363807332 (66903 ms ago)},
+2451: #11 11-02 15:50:15.270  Adding refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 363807332 (now)},
+2453: #10 11-02 15:50:10.131  Removing refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 363792389 (9804 ms ago)},
+2455: #9 11-02 15:50:00.328  Adding refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 363792389 (now)},
+2457: #8 11-02 15:47:29.281  Removing refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 363620766 (20576 ms ago)},
+2459: #7 11-02 15:47:08.704  Adding refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 363620766 (now)},
+2461: #6 11-02 15:46:50.936  Removing refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 363583795 (19202 ms ago)},
+2463: #5 11-02 15:46:31.733  Adding refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 363583795 (now)},
+
+dex_120_display.txt
+2708: RefreshRateTokens:[{ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 39115019 (8946 ms ago)}]
+2709: #15 11-16 18:44:10.944  Adding refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 39115019 (now)},
+2711: #14 11-16 18:43:57.766  Removing refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 39088088 (13754 ms ago)},
+2713: #13 11-16 18:43:44.013  Adding refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 39088088 (1 ms ago)},
+2715: #12 11-16 18:40:54.695  Removing refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 38859277 (59493 ms ago)},
+2717: #11 11-16 18:39:55.202  Adding refreshRateToken={ RefreshRateToken[->LowRefreshRateToken:DexController, acquire at 38859277 (now)},
+
+dex_hires_sf.txt
+61: pacesetterDisplayId=4630946315032985731
+90: Pacesetter Display 4630946315032985731
+92: renderRate=120.00 Hz
+93: activeMode={id=0, hwcId=0, resolution=1440x3120, vsyncRate=120.00 Hz, dpi=508.00x504.76, group=1440, vrrConfig=N/A, hdrOutputType=INVALID}
+5161: renderRate=120.00 Hz
+5162: activeMode={id=0, hwcId=0, resolution=1440x3120, vsyncRate=120.00 Hz, dpi=508.00x504.76, group=1440, vrrConfig=N/A, hdrOutputType=INVALID}
+
+dex_120_sf.txt
+36: pacesetterDisplayId=4630946315032985731
+65: Pacesetter Display 4630946315032985731
+67: renderRate=60.00 Hz
+68: activeMode={id=2, hwcId=2, resolution=1440x3120, vsyncRate=60.00 Hz, dpi=508.00x504.76, group=1440, vrrConfig=N/A, hdrOutputType=INVALID}
+114: Follower Display 4633127787861907461
+116: renderRate=120.00 Hz
+117: activeMode={id=1, hwcId=1, resolution=1920x1080, vsyncRate=120.00 Hz, dpi=81.69x81.64, group=1920, vrrConfig=N/A, hdrOutputType=INVALID}
+5276: renderRate=60.00 Hz
+5277: activeMode={id=2, hwcId=2, resolution=1440x3120, vsyncRate=60.00 Hz, dpi=508.00x504.76, group=1440, vrrConfig=N/A, hdrOutputType=INVALID}
+5329: renderRate=120.00 Hz
+5330: activeMode={id=1, hwcId=1, resolution=1920x1080, vsyncRate=120.00 Hz, dpi=81.69x81.64, group=1920, vrrConfig=N/A, hdrOutputType=INVALID}

@@ -1,0 +1,34 @@
+[15:50:16] NOTIFY: Step 1: Plug the monitor into the phone (or leave it plugged in). Wait for the next message.
+[15:50:17] Waiting for monitor...
+[15:50:23] NOTIFY: Monitor connected (display 15) at 60.000004Hz. Checking it stays connected for 15s...
+Supported modes for display 15:
+  Mode ID: 105, Resolution: 1920x1080, Refresh Rate:  60.00 Hz
+  Mode ID: 106, Resolution: 1920x1080, Refresh Rate:  120.00 Hz
+  Mode ID: 107, Resolution: 1680x1050, Refresh Rate:  60.00 Hz
+  Mode ID: 108, Resolution: 1600x900, Refresh Rate:  60.00 Hz
+  Mode ID: 109, Resolution: 1280x1024, Refresh Rate:  75.00 Hz
+  Mode ID: 110, Resolution: 1280x1024, Refresh Rate:  60.00 Hz
+  Mode ID: 111, Resolution: 1440x900, Refresh Rate:  60.00 Hz
+  Mode ID: 112, Resolution: 1280x800, Refresh Rate:  60.00 Hz
+  Mode ID: 113, Resolution: 1152x864, Refresh Rate:  75.00 Hz
+  Mode ID: 114, Resolution: 1280x720, Refresh Rate:  60.00 Hz
+  Mode ID: 115, Resolution: 1024x768, Refresh Rate:  75.00 Hz
+  Mode ID: 116, Resolution: 1024x768, Refresh Rate:  70.00 Hz
+  Mode ID: 117, Resolution: 1024x768, Refresh Rate:  60.00 Hz
+  Mode ID: 118, Resolution: 800x600, Refresh Rate:  75.00 Hz
+  Mode ID: 119, Resolution: 800x600, Refresh Rate:  72.00 Hz
+  Mode ID: 120, Resolution: 800x600, Refresh Rate:  60.00 Hz
+  Mode ID: 121, Resolution: 720x480, Refresh Rate:  60.00 Hz
+  Mode ID: 122, Resolution: 640x480, Refresh Rate:  75.00 Hz
+  Mode ID: 123, Resolution: 640x480, Refresh Rate:  60.00 Hz
+[15:50:40] Display 15 connected at 60.000004Hz; fastest 1080p mode: 120.00Hz
+[15:50:40] set-user-preferred-display-mode 1920 1080 120 15
+[15:50:41] Stored preference: User preferred display mode: 1920 1080 120.0
+[15:50:44] Rate right after setting (no replug): 60.000004Hz
+[15:50:44] NOTIFY: Step 2: Saved 120Hz as preferred. Now UNPLUG the monitor from the phone, wait 5 seconds, and plug it back in.
+[15:50:44] Waiting for unplug...
+[15:51:25] Unplugged. Waiting for replug...
+[15:51:42] NOTIFY: Monitor connected (display 17) at 60.000004Hz. Checking it stays connected for 15s...
+[15:51:59] After replug: display 17 at 60.000004Hz
+[15:52:01] NOTIFY: Done. Monitor came back at 60Hz, so the saved preference did not apply at connect. Plug the monitor back into your PC and tell Claude.
+[15:52:02] Finished.

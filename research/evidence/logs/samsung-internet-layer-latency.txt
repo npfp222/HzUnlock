@@ -1,0 +1,2 @@
+layer: SurfaceView[com.sec.android.app.sbrowser/com.sec.android.app.sbrowser.SBrowserMainActivity3]@0(BLAST)#7356
+8333333

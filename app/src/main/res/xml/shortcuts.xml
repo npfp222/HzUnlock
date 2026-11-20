@@ -1,0 +1,13 @@
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="toggle"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut"
+        android:shortcutShortLabel="@string/shortcut_toggle_short"
+        android:shortcutLongLabel="@string/shortcut_toggle_long">
+        <intent
+            android:action="io.github.npfp222.hzunlock.TOGGLE"
+            android:targetPackage="io.github.npfp222.hzunlock"
+            android:targetClass="io.github.npfp222.hzunlock.MainActivity" />
+    </shortcut>
+</shortcuts>

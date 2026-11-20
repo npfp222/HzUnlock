@@ -1,0 +1,135 @@
+Recorded DeX device output
+==========================
+
+Selected verbatim output rows from the original session records. Event references
+are the historical JSONL line numbers. Container timestamps below are UTC.
+The large private transcripts are outside this archive.
+
+DeX device state (from earlier ADB capture)
+-------------------------------------------
+Event 653 [2026-11-02T20:58:13.110Z]
+ro.product.model=SM-S928U
+ro.boot.flash.locked=1
+ro.boot.verifiedbootstate=green
+
+240 Hz appears in supported modes
+---------------------------------
+Event 3322 [2026-11-18T21:55:06.685Z]
+Mode ID: 62, Resolution: 1920x1080, Refresh Rate:  240.00 Hz
+Mode ID: 63, Resolution: 1920x1080, Refresh Rate:  120.00 Hz
+Mode ID: 64, Resolution: 1920x1080, Refresh Rate:  60.00 Hz
+
+240 Hz becomes active; phone still supplies timing
+--------------------------------------------------
+Event 3335 [2026-11-18T21:55:15.012Z]
+11-18 16:53:30 monitor came up at 120Hz but offers 240Hz; start mode now 1920:1080:240
+11-18 16:53:44 monitor connected at 240Hz (fastest available)
+11-18 16:54:04 monitor connected at 240Hz (fastest available)
+display 4630946315032985731 phone 1440x3120 active=120Hz fastest=120Hz policy phys=[120,121] render=[120,121]
+display 4633127787861907461 MONITOR 1920x1080 active=240Hz fastest=240Hz policy phys=[240,241] render=[240,241]
+Pacesetter Display 4630946315032985731
+renderRate=120.00 Hz
+activeMode={id=0, hwcId=0, resolution=1440x3120, vsyncRate=120.00 Hz, dpi=508.00x504.76, group=1440, vrrConfig=N/A,
+Follower Display 4633127787861907461
+renderRate=240.00 Hz
+activeMode={id=0, hwcId=0, resolution=1920x1080, vsyncRate=240.00 Hz, dpi=81.69x81.64, group=1920, vrrConfig=N/A, hd
+
+Settings scroll before pacesetter switch
+----------------------------------------
+Event 3342 [2026-11-18T21:55:39.001Z]
+layerName = VRI-com.android.settings/com.android.settings.SubSettings#2389 | totalFrames = 1304 | averageFPS = 124.904
+
+Screen-off attempt retained the phone pacesetter
+------------------------------------------------
+Event 3353 [2026-11-18T21:56:00.625Z]
+Pacesetter Display 4630946315032985731
+renderRate=120.00 Hz
+Follower Display 4633127787861907461
+renderRate=240.00 Hz
+Event 3358 [2026-11-18T21:56:19.883Z]
+Pacesetter Display 4630946315032985731
+renderRate=120.00 Hz
+Follower Display 4633127787861907461
+renderRate=240.00 Hz
+
+External pacesetter with matching phone and monitor modes
+---------------------------------------------------------
+Event 3457 [2026-11-18T21:59:15.140Z]
+Follower Display 4630946315032985731
+renderRate=120.00 Hz
+activeMode={id=0, hwcId=0, resolution=1440x3120, vsyncRate=120.00 Hz, dpi=508.00x504.76, group=1440, vrrConfig=N/A,
+Pacesetter Display 4633127787861907461
+renderRate=240.00 Hz
+activeMode={id=0, hwcId=0, resolution=1920x1080, vsyncRate=240.00 Hz, dpi=81.69x81.64, group=1920, vrrConfig=N/A, hd
+
+Same Settings scroll after pacesetter switch
+--------------------------------------------
+Event 3466 [2026-11-18T21:59:33.947Z]
+layerName = VRI-com.android.settings/com.android.settings.SubSettings#2389 | totalFrames = 2738 | averageFPS = 248.841
+5 displayRefreshRate = 240 fps
+Pacesetter Display 4633127787861907461
+
+Samsung Internet idle measurements
+----------------------------------
+Event 3534 [2026-11-18T22:04:14.560Z]
+layerName = com.sec.android.app.sbrowser/SbrowserChildSurface#2555 | totalFrames = 317 | averageFPS = 54.524
+Event 3547 [2026-11-18T22:04:28.902Z]
+layerName = com.sec.android.app.sbrowser/SbrowserChildSurface#2555 | totalFrames = 63 | averageFPS = 56.655
+Event 3670 [2026-11-18T22:11:54.862Z]
+layerName = com.sec.android.app.sbrowser/SbrowserChildSurface#2776 | totalFrames = 1447 | averageFPS = 249.612
+displayRefreshRate = 240 fps
+
+Driver-set 240 Hz mode recovered after reconnect
+------------------------------------------------
+Event 3711 [2026-11-18T22:13:15.778Z]
+[ 7466.510866] [msm-dp] secdp_show_max_timing: prf:1920x1080@240hz mrr:1920x1080@120hz dex:1920x1080@60hz
+[ 7467.375053] [msm-dp] secdp_show_max_timing: prf:0x0@0hz mrr:0x0@0hz dex:0x0@0hz
+[ 7467.377407] [msm-dp] secdp_show_max_timing: prf:1920x1080@240hz mrr:1920x1080@120hz dex:1920x1080@60hz
+11-18 17:13:04 monitor connected at 240Hz (fastest available)
+11-18 17:13:04 pacesetter -> monitor 4633127787861907461 (240Hz)
+renderFrameRate 240.00005
+Event 3962 [2026-11-18T22:37:13.437Z]
+[ 8907.188305] [msm-dp] dp_panel_resolution_info: SET NEW RESOLUTION: 1920x1080@60fps
+[ 8913.788827] [msm-dp] dp_panel_resolution_info: SET NEW RESOLUTION: 1920x1080@240fps
+11-18 17:36:57 monitor connected at 60Hz (fastest available)
+11-18 17:37:04 monitor connected at 240Hz (fastest available)
+11-18 17:37:04 pacesetter -> monitor 4633127787861907461 (240Hz)
+renderFrameRate 240.00005
+Event 3975 [2026-11-18T22:38:23.710Z]
+stale: renderFrameRate 60.000004
+11-18 17:37:56 pacesetter -> phone (reset)
+11-18 17:37:57 monitor connected at 60Hz (fastest available)
+11-18 17:38:03 virtual replug done (it was connected before high refresh was ready)
+11-18 17:38:03 monitor connected at 240Hz (fastest available)
+11-18 17:38:03 pacesetter -> monitor 4633127787861907461 (240Hz)
+after: renderFrameRate 240.00005
+Pacesetter Display 4633127787861907461
+
+Final adaptive phone policy and external 240 Hz policy
+------------------------------------------------------
+Event 488 [2026-11-19T04:01:45.422Z]
+11-18 22:50:47 monitor connected at 240Hz (fastest available)
+11-18 22:50:47 pacesetter -> monitor 4633127787861907461 (240Hz)
+11-18 23:01:40 display 4630946315032985731 (phone) released from 120Hz pin to 0-120Hz
+11-18 23:01:40 monitor connected at 240Hz (fastest available)
+11-18 23:01:40 pacesetter -> monitor 4633127787861907461 (240Hz)
+displayManagerPolicy={defaultModeId=0, allowGroupSwitching=false, primaryRanges={physical=[0.00 Hz, 120.00 Hz], render=[0.00 Hz, 120.00 Hz]}, appRequestRanges={physical=[0.00 Hz, 120.00 Hz], render=[0.00 Hz, 120.00 Hz]} idleScreenConfig=nullptr}
+displayManagerPolicy={defaultModeId=0, allowGroupSwitching=false, primaryRanges={physical=[239.50 Hz, 240.50 Hz], render=[239.50 Hz, 240.50 Hz]}, appRequestRanges={physical=[239.50 Hz, 240.50 Hz], render=[239.50 Hz, 240.50 Hz]} idleScreenConfig=nullptr}
+activeMode={id=2, hwcId=2, resolution=1440x3120, vsyncRate=60.00 Hz, dpi=508.00x504.76, group=1440, vrrConfig=N/A, hdrOutputType=INVALID}
+activeMode={id=0, hwcId=0, resolution=1920x1080, vsyncRate=240.00 Hz, dpi=81.69x81.64, group=1920, vrrConfig=N/A, hdrOutputType=INVALID}
+
+Thermal and compositor snapshot during the loaded session
+---------------------------------------------------------
+Event 543 [2026-11-19T04:22:08.780Z]
+temperature: 419
+Temperature{mValue=42.0, mType=2, mName=BAT, mStatus=0}
+Temperature{mValue=44.3, mType=3, mName=SKIN, mStatus=3}
+Thermal Status: 3
+1905 system       -3   0  13G  52M  31M S 90.6   0.4 154:43.97 surfaceflinger
+
+One UI version recorded before the experiment
+---------------------------------------------
+Event 689 [2026-11-02T21:00:47.364Z]
+ro.build.version.release: 17
+ro.build.version.oneui: 90000
+Properties labeled here using the capture command. The later session saw the same firmware identity.

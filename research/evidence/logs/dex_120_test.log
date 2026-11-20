@@ -1,0 +1,12 @@
+[18:41:57] re-set start-mode property
+[18:41:58] prop=  mHighResolutionsForExternalDesktopEnabled=true  mDisplayPortState=0 
+[18:42:00] Hz120 loop running: 1
+[18:42:00] NOTIFY: Ready (rooted). Plug the monitor into the phone now. I will report its refresh rate.
+[18:43:52] display 7 connected: renderFrameRate=60.000004 | SF:  renderRate=120.00 Hz  activeMode={id=1, hwcId=1, resolution=1920x1080, vsyncRate=120.00 Hz, dpi=81.69x81.64, group=1920, vrrConfig=N/A, hdrOutputType=INVALID} 
+[18:43:52] Hz120 log: 
+[18:43:56] NOTIFY: Monitor connected. Android reports 60Hz. Compositor: renderRate=120.00 Hz, mode vsyncRate=120.00 Hz. Leave it plugged in and tell Claude.
+[18:44:02] NOTIFY: Monitor disconnected. Plug it back in if you want another reading.
+[18:44:19] display 8 connected: renderFrameRate=60.000004 | SF:  renderRate=120.00 Hz  activeMode={id=1, hwcId=1, resolution=1920x1080, vsyncRate=120.00 Hz, dpi=81.69x81.64, group=1920, vrrConfig=N/A, hdrOutputType=INVALID} 
+[18:44:20] Hz120 log: 
+[18:44:22] NOTIFY: Monitor connected. Android reports 60Hz. Compositor: renderRate=120.00 Hz, mode vsyncRate=120.00 Hz. Leave it plugged in and tell Claude.
+[18:44:23] Finished watcher (Hz120 loop keeps running on the phone).

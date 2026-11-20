@@ -1,0 +1,45 @@
+[23:45:59] Waiting for a stable external display (up to 20 min)...
+[23:46:05] Saw external display id=9, checking it stays connected...
+[23:46:21] Saw external display id=10, checking it stays connected...
+[23:46:38] External display id=10
+[23:46:38] Name/res: DisplayInfo{"Odyssey G40B" real 1920 x 1080
+[23:46:38] Current renderFrameRate: 60.000004
+[23:46:38] Supported modes:
+Supported modes for display 10:
+  Mode ID: 40, Resolution: 1920x1080, Refresh Rate:  60.00 Hz
+  Mode ID: 41, Resolution: 1600x900, Refresh Rate:  60.00 Hz
+  Mode ID: 42, Resolution: 640x480, Refresh Rate:  75.00 Hz
+  Mode ID: 43, Resolution: 640x480, Refresh Rate:  60.00 Hz
+[23:46:39] Current res 1920x1080; best rate at this res: 60.00; fastest mode overall: Resolution: 640x480, Refresh Rate:  75.00
+[23:46:39] No >60Hz at current res; will try 640x480@75.00 instead.
+[23:46:39] Attempt A: set-user-preferred-display-mode 640 480 75 10
+[23:46:47] renderFrameRate after A: 60.000004
+[23:46:48] Attempt B: global set-user-preferred-display-mode 640 480 75
+
+Exception occurred while executing 'set-user-preferred-display-mode':
+java.lang.SecurityException: Package android does not belong to 2000
+	at android.app.AppOpsManager.checkPackage(AppOpsManager.java:10536)
+	at android.content.ContentProvider.getCallingAttributionSource(ContentProvider.java:1252)
+	at android.content.ContentProvider.getCallingPackage(ContentProvider.java:1232)
+	at com.android.providers.settings.SettingsProvider.isChangeAllowed(SettingsProvider.java:1090)
+	at com.android.providers.settings.SettingsProvider.call(SettingsProvider.java:710)
+	at android.content.ContentProvider.call(ContentProvider.java:2796)
+	at android.content.ContentProvider$Transport.call(ContentProvider.java:652)
+	at android.provider.Settings$NameValueCache.putStringForUser(Settings.java:4078)
+	at android.provider.Settings$Global.putStringForUser(Settings.java:26304)
+	at android.provider.Settings$Global.putString(Settings.java:26140)
+	at android.provider.Settings$Global.putFloat(Settings.java:26494)
+	at com.android.server.display.DisplayManagerService.storeModeLocked(qb/116016018 3f734c35e9724b00cc24e8b6233f924e701d3cd2787467359b50d377b2ecee13:36)
+	at com.android.server.display.DisplayManagerService.setUserPreferredDisplayModeInternal(qb/116016018 3f734c35e9724b00cc24e8b6233f924e701d3cd2787467359b50d377b2ecee13:59)
+	at com.android.server.display.DisplayManagerShellCommand.onCommand(qb/116016018 3f734c35e9724b00cc24e8b6233f924e701d3cd2787467359b50d377b2ecee13:3071)
+	at com.android.modules.utils.BasicShellCommandHandler.exec(BasicShellCommandHandler.java:97)
+	at android.os.ShellCommand.exec(ShellCommand.java:39)
+	at com.android.server.display.DisplayManagerService$BinderService.onShellCommand(qb/116016018 3f734c35e9724b00cc24e8b6233f924e701d3cd2787467359b50d377b2ecee13:19)
+	at android.os.Binder.shellCommand(Binder.java:1124)
+	at android.os.Binder.onTransact(Binder.java:972)
+	at android.hardware.display.IDisplayManager$Stub.onTransact(IDisplayManager.java:2132)
+	at android.os.Binder.execTransactInternal(Binder.java:1405)
+	at android.os.Binder.execTransact(Binder.java:1359)
+[23:46:56] renderFrameRate after B: 60.000004
+[23:46:56] Preferred mode now: User preferred display mode: 640 480 75.0
+[23:46:56] RESULT: mode request did not stick (still 60.000004Hz)

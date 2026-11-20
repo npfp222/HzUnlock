@@ -1,0 +1,29 @@
+[15:45:47] HighRes flag:  mHighResolutionsForExternalDesktopEnabled=true  mDisplayPortState=0 
+[15:45:48] Waiting for a stable external display (up to 20 min)...
+[15:46:37] Saw external display id=12, checking it stays connected...
+[15:46:59] Display:  
+[15:46:59] Active renderFrameRate: 
+[15:46:59] Supported modes:
+Supported modes for display 12:
+  Mode ID: 48, Resolution: 1920x1080, Refresh Rate:  60.00 Hz
+  Mode ID: 49, Resolution: 1920x1080, Refresh Rate:  120.00 Hz
+  Mode ID: 50, Resolution: 1680x1050, Refresh Rate:  60.00 Hz
+  Mode ID: 51, Resolution: 1600x900, Refresh Rate:  60.00 Hz
+  Mode ID: 52, Resolution: 1280x1024, Refresh Rate:  75.00 Hz
+  Mode ID: 53, Resolution: 1280x1024, Refresh Rate:  60.00 Hz
+  Mode ID: 54, Resolution: 1440x900, Refresh Rate:  60.00 Hz
+  Mode ID: 55, Resolution: 1280x800, Refresh Rate:  60.00 Hz
+  Mode ID: 56, Resolution: 1152x864, Refresh Rate:  75.00 Hz
+  Mode ID: 57, Resolution: 1280x720, Refresh Rate:  60.00 Hz
+  Mode ID: 58, Resolution: 1024x768, Refresh Rate:  75.00 Hz
+  Mode ID: 59, Resolution: 1024x768, Refresh Rate:  70.00 Hz
+  Mode ID: 60, Resolution: 1024x768, Refresh Rate:  60.00 Hz
+  Mode ID: 61, Resolution: 800x600, Refresh Rate:  75.00 Hz
+  Mode ID: 62, Resolution: 800x600, Refresh Rate:  72.00 Hz
+  Mode ID: 63, Resolution: 800x600, Refresh Rate:  60.00 Hz
+  Mode ID: 64, Resolution: 720x480, Refresh Rate:  60.00 Hz
+  Mode ID: 65, Resolution: 640x480, Refresh Rate:  75.00 Hz
+  Mode ID: 66, Resolution: 640x480, Refresh Rate:  60.00 Hz
+[15:47:00] DisplayPort state after connect:  mHighResolutionsForExternalDesktopEnabled=true  mDisplayPortState=0 
+[15:47:03] Fastest mode offered: 120.00Hz, running at: Hz
+[15:47:03] Finished.

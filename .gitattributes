@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+gradlew text eol=lf
+*.png binary
+*.jar binary
+*.dex binary
+# Keep the research archive byte-for-byte so research/SHA256SUMS.txt stays valid.
+research/** -text

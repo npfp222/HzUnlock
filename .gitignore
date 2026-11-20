@@ -1,0 +1,15 @@
+# Gradle and Android build output
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+captures/
+
+# Release signing (keep these private)
+keystore.properties
+*.jks
+*.keystore
+
+# Local development notes
+app/CLAUDE_HANDOFF.md
