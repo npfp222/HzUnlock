@@ -85,6 +85,8 @@ public final class HzTileService extends TileService implements ServiceBridge.Li
             try {
                 prefs.push(service);
                 JSONObject state = new JSONObject(service.getState());
+                // A session that turned itself off to undo a monitor mode switch stays off.
+                if (state.has("rolledBack")) prefs.setWantOn(false);
                 if (!restored && !clickPending && prefs.restore() && prefs.wantOn() && !state.optBoolean("running")) {
                     prefs.start(service);
                     state = new JSONObject(service.getState());

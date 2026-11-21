@@ -19,7 +19,7 @@ final class Report {
      */
     static String summary(JSONObject state, Prefs prefs) {
         StringBuilder text = new StringBuilder("HzUnlock ").append(BuildConfig.VERSION_NAME)
-                .append(" (").append(REPO_URL).append(")\n");
+                .append(" (build ").append(BuildConfig.VERSION_CODE).append(") · ").append(REPO_URL).append('\n');
         if (state == null) {
             return text.append(Build.MANUFACTURER).append(' ').append(Build.MODEL).append(" · Android ")
                     .append(Build.VERSION.RELEASE).append(" · ").append(Build.DISPLAY).append('\n')
@@ -53,14 +53,40 @@ final class Report {
                         .append(rates.toString().replace(",", ", ")).append('\n');
             }
             if (monitor.has("modes")) text.append("Fastest per resolution: ").append(monitor.optString("modes")).append('\n');
+            if (monitor.optBoolean("fasterListed")) text.append("Connection: started below a listed rate at this resolution\n");
             if (monitor.has("limitedHz")) {
                 text.append(String.format(Locale.US, "Connection: stays at %.0f Hz after reconnecting\n", monitor.optDouble("limitedHz")));
+            }
+            if (monitor.has("lostHz")) {
+                text.append(String.format(Locale.US, "Connection: lost at %.0f Hz within seconds of starting\n", monitor.optDouble("lostHz")));
+            }
+            if (monitor.optBoolean("phonePaced")) text.append("Connection: dropped after monitor timing; phone screen paces apps\n");
+            if (monitor.has("keptMode")) text.append("Monitor mode kept: ").append(monitor.optString("keptMode")).append('\n');
+            if (monitor.has("startMode")) text.append("Start mode: ").append(monitor.optString("startMode")).append('\n');
+            JSONObject suggest = monitor.optJSONObject("suggest");
+            if (suggest != null) {
+                text.append(String.format(Locale.US, "Suggested mode: %dx%d @ %d Hz (%s)\n", suggest.optInt("width"),
+                        suggest.optInt("height"), suggest.optInt("hz"), suggest.optString("reason")));
             }
         } else {
             text.append("Monitor: none\n");
         }
         JSONArray stops = state.optJSONArray("stops");
         text.append("Stops: ").append(stops == null ? "[]" : stops.toString().replace(",", ", "));
+        if (caps != null) {
+            String method = caps.optString("modeMethod", caps.optBoolean("monitorModes") ? "root" : "none");
+            text.append("\nMonitor Mode: ").append(switch (method) {
+                case "root" -> "available (root)";
+                case "start" -> "available (set at connect)";
+                default -> caps.optBoolean("displayConfig") ? "unavailable" : "unavailable (no Qualcomm display config)";
+            });
+        }
+        JSONObject switching = state.optJSONObject("modeSwitch");
+        if (switching != null) text.append("\nMonitor mode switch: ").append(switching.optString("label"))
+                .append(switching.optBoolean("confirm") ? " (waiting to be kept)"
+                        : switching.optBoolean("replug") ? " (waiting for a replug)" : " (switching)");
+        if (state.has("rolledBack")) text.append("\nRecovery: ").append(state.optString("rolledBack"));
+        else if (state.has("modeResult")) text.append("\nLast monitor mode switch: ").append(state.optString("modeResult"));
         if (state.has("notice")) text.append("\nNotice: ").append(state.optString("notice"));
         return text.toString();
     }

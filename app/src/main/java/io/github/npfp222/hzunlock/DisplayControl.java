@@ -89,7 +89,9 @@ final class DisplayControl {
         if (canReadModes()) {
             for (long id : (long[]) IDS.invoke(null)) {
                 Boolean on = power.get(id);
-                result.add(sfInfo(id, on == null || on));
+                Info info = sfInfo(id, on == null || on);
+                // Null while SurfaceFlinger is still adding or removing the display; the next read has it.
+                if (info != null) result.add(info);
             }
             return result;
         }
@@ -114,9 +116,11 @@ final class DisplayControl {
         return result;
     }
 
+    /** The display as SurfaceFlinger sees it, or null while it's mid-hotplug (no info or no active mode yet). */
     private static Info sfInfo(long id, boolean on) throws ReflectiveOperationException {
         Object stat = STATIC_INFO.invoke(null, id);
         Object dyn = DYNAMIC_INFO.invoke(null, id);
+        if (stat == null || dyn == null) return null;
         boolean internal = (Boolean) field(stat, "isInternal");
         String name = internal ? "Phone screen" : "External display";
         Object product = optional(stat, "deviceProductInfo");
@@ -135,7 +139,7 @@ final class DisplayControl {
             modes.add(mode);
             if (mode.id() == activeId) active = mode;
         }
-        if (active == null) throw new IllegalStateException("SurfaceFlinger reported no active mode.");
+        if (active == null) return null;
         return new Info(id, internal, on, name, active, fastest(active, modes), modes);
     }
 

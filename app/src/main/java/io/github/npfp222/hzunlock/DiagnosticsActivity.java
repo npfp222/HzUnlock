@@ -1,6 +1,7 @@
 package io.github.npfp222.hzunlock;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
@@ -12,7 +13,6 @@ import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -31,18 +31,18 @@ import android.widget.Toast;
 
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
  * Shows the full diagnostics report (compatibility summary, the session's event log, saved
  * crashes, and the display-related system log) so users see exactly what they share, and lets
- * them copy it, share it, or open a prefilled GitHub issue. Nothing leaves the phone on its own.
+ * them save it as a file, share that file, copy it, or open a prefilled GitHub issue to attach it
+ * to. A file is never cut short, unlike a paste into a comment box or a prefilled link. Nothing
+ * leaves the phone on its own.
  */
 public final class DiagnosticsActivity extends Activity implements ServiceBridge.Listener {
-    /** GitHub rejects very long URLs; keep the prefilled issue well below that. */
-    private static final int MAX_ISSUE_URL = 7_000;
-
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService work = Executors.newSingleThreadExecutor();
     private Palette c;
@@ -59,6 +59,7 @@ public final class DiagnosticsActivity extends Activity implements ServiceBridge
     private JSONObject diagnostics;
     private String report = "";
     private boolean loading;
+    private AlertDialog dialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,6 +91,7 @@ public final class DiagnosticsActivity extends Activity implements ServiceBridge
 
     @Override
     protected void onDestroy() {
+        if (dialog != null) dialog.dismiss();
         work.shutdownNow();
         super.onDestroy();
     }
@@ -150,52 +152,84 @@ public final class DiagnosticsActivity extends Activity implements ServiceBridge
         String status;
         if (loading) status = "Collecting the report…";
         else if (diagnostics == null) status = "Shizuku isn't connected, so this report only has what the app itself knows.";
-        else status = "This is everything the report contains. Nothing is sent until you share it.";
+        else status = "This is everything the report contains. Nothing is sent until you share it. "
+                + "Saving or sharing it as a file keeps all of it; pasted text can be cut short.";
         statusView.setText(status);
     }
 
     // ---- actions -------------------------------------------------------------------------------
 
     private void copy() {
+        if (notReady()) return;
         getSystemService(ClipboardManager.class).setPrimaryClip(ClipData.newPlainText("HzUnlock report", report));
         Toast.makeText(this, "Report copied", Toast.LENGTH_SHORT).show();
     }
 
+    /** True (and says so) while the report is still being collected. */
+    private boolean notReady() {
+        if (!loading) return false;
+        Toast.makeText(this, "The report is still being collected.", Toast.LENGTH_SHORT).show();
+        return true;
+    }
+
+    /** Saves the full report to Downloads; returns null (after saying why) when that fails. */
+    private IssueReporter.Saved saveToDownloads() {
+        try {
+            return IssueReporter.save(this, report);
+        } catch (IOException e) {
+            Toast.makeText(this, "Couldn't save the report: " + Errors.describe(e), Toast.LENGTH_LONG).show();
+            return null;
+        }
+    }
+
+    private void save() {
+        if (notReady()) return;
+        IssueReporter.Saved saved = saveToDownloads();
+        if (saved != null) Toast.makeText(this, "Saved to Downloads as " + saved.name(), Toast.LENGTH_LONG).show();
+    }
+
+    /** Shares the report as a file, so the receiving app gets all of it. */
     private void share() {
+        if (notReady()) return;
+        IssueReporter.Saved saved = saveToDownloads();
+        if (saved == null) return;
         Intent send = new Intent(Intent.ACTION_SEND).setType("text/plain")
                 .putExtra(Intent.EXTRA_SUBJECT, "HzUnlock " + BuildConfig.VERSION_NAME + " report")
-                .putExtra(Intent.EXTRA_TEXT, report);
+                .putExtra(Intent.EXTRA_TEXT, "HzUnlock diagnostics report attached (" + saved.name() + ").")
+                .putExtra(Intent.EXTRA_STREAM, saved.uri())
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        send.setClipData(ClipData.newUri(getContentResolver(), saved.name(), saved.uri()));
         try {
             startActivity(Intent.createChooser(send, "Share Report"));
         } catch (RuntimeException e) {
-            Toast.makeText(this, "No app can share the report.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "No app can share the report. It's saved in Downloads as " + saved.name() + ".",
+                    Toast.LENGTH_LONG).show();
         }
     }
 
     /**
-     * Copies the full report, then opens a new GitHub issue prefilled with the summary and the
-     * latest events. The full report is usually too long for a link, so the issue asks for a paste.
+     * Saves the full report to Downloads and opens a new GitHub issue prefilled with a title, the
+     * summary, the latest events, and where to attach the file. A link can't carry the whole
+     * report, and GitHub limits an issue's text, but an attached file has room for all of it.
      */
     private void reportIssue() {
-        getSystemService(ClipboardManager.class).setPrimaryClip(ClipData.newPlainText("HzUnlock report", report));
-        String summary = Report.summary(state, prefs);
-        String url = null;
-        for (int events : new int[]{40, 25, 12, 0}) {
-            String recent = Report.lastEvents(diagnostics, events);
-            String body = "**Compatibility report**\n```\n" + summary + "\n```\n\n"
-                    + (recent.isEmpty() ? "" : "**Latest events**\n```\n" + recent + "\n```\n\n")
-                    + "**Full diagnostics** (HzUnlock copied them to your clipboard; paste them here):\n\n\n"
-                    + "**Monitor and connection** (for example: Odyssey G40B, USB-C to DisplayPort hub):\n\n\n"
-                    + "**What happened:**\n";
-            url = Report.REPO_URL + "/issues/new?body=" + Uri.encode(body);
-            if (url.length() <= MAX_ISSUE_URL) break;
-        }
-        Toast.makeText(this, "Full report copied. Paste it into the issue.", Toast.LENGTH_LONG).show();
-        try {
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-        } catch (RuntimeException e) {
-            Toast.makeText(this, "No browser is available.", Toast.LENGTH_SHORT).show();
-        }
+        if (notReady()) return;
+        IssueReporter.Saved saved = saveToDownloads();
+        if (saved == null) return;
+        // Also on the clipboard, for anyone who'd rather paste it.
+        IssueReporter.copy(this, report);
+        String url = IssueReporter.issueUrl(state, diagnostics, prefs, saved.name());
+        if (dialog != null && dialog.isShowing()) dialog.dismiss();
+        dialog = new AlertDialog.Builder(this, c.dark ? android.R.style.Theme_DeviceDefault_Dialog_Alert
+                : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert)
+                .setTitle("Report saved")
+                .setMessage("The full report is in Downloads as " + saved.name() + ".\n\n"
+                        + "On the GitHub page, sign in, then attach that file to the issue: tap \"Paste, drop, or click "
+                        + "to add files\" under the text box and pick it from Downloads. Add what happened, then tap "
+                        + "Create.\n\nThe report is also copied, if you'd rather paste it.")
+                .setPositiveButton("Open GitHub", (d, which) -> IssueReporter.open(this, url))
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void clearCrashes() {
@@ -272,9 +306,11 @@ public final class DiagnosticsActivity extends Activity implements ServiceBridge
         LinearLayout actions = group(column, 22);
         linkRow(actions, "Report an Issue on GitHub", v -> reportIssue());
         separator(actions);
-        linkRow(actions, "Copy Report", v -> copy());
+        linkRow(actions, "Save Report to Downloads", v -> save());
         separator(actions);
-        linkRow(actions, "Share Report…", v -> share());
+        linkRow(actions, "Share Report File…", v -> share());
+        separator(actions);
+        linkRow(actions, "Copy Report", v -> copy());
         separator(actions);
         linkRow(actions, "Refresh", v -> {
             bridge.release();

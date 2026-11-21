@@ -17,5 +17,15 @@ interface IDisplayService {
     String getDiagnostics(boolean includeSystemLog) = 6;
     /** Deletes the saved service crash once it has been reported or dismissed. */
     void clearCrash() = 7;
+    /**
+     * Restarts the monitor in a mode the user chose from the state's modeChoices: with root through
+     * the composer's start-mode property, otherwise by setting it as the monitor connects (Snapdragon).
+     * The service checks it again against the monitor connected now and refuses anything else.
+     */
+    String switchMonitorMode(long displayId, int width, int height, int hz) = 8;
+    /** Keeps (true) or undoes (false) a monitor mode switch that is waiting for the user. */
+    String confirmMonitorMode(boolean keep) = 9;
+    /** Stops setting the kept start mode; the monitor starts in its own default mode from its next connection. */
+    String forgetMonitorStartMode() = 10;
     oneway void destroy() = 16777114;
 }

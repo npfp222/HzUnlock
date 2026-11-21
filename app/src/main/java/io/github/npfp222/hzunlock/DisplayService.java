@@ -27,7 +27,10 @@ public final class DisplayService extends IDisplayService.Stub {
     /** The event log of this service, and of the one before it (which survives a reboot after a freeze). */
     private static final File EVENTS_FILE = new File("/data/local/tmp/hzunlock-events.txt");
     private static final File PREVIOUS_EVENTS_FILE = new File("/data/local/tmp/hzunlock-events-previous.txt");
-    private static final int SYSTEM_LOG_LINES = 250;
+    /** The report is saved and shared as a file, so it can hold a long stretch of the log. */
+    private static final int SYSTEM_LOG_LINES = 1_000;
+    /** Older key display lines added before those, from the whole log buffer. */
+    private static final int KEY_LOG_LINES = 400;
 
     private final int ownerUid;
     private final int serviceUid = Os.getuid();
@@ -155,6 +158,40 @@ public final class DisplayService extends IDisplayService.Stub {
     }
 
     @Override
+    public String switchMonitorMode(long displayId, int width, int height, int hz) {
+        requireOwner();
+        if (!privileged()) return "Choosing the monitor's mode needs Shizuku running as ADB shell or root.";
+        long identity = Binder.clearCallingIdentity();
+        try {
+            return session.switchMode(displayId, width, height, hz);
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    @Override
+    public String confirmMonitorMode(boolean keep) {
+        requireOwner();
+        long identity = Binder.clearCallingIdentity();
+        try {
+            return session.confirmMode(keep);
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    @Override
+    public String forgetMonitorStartMode() {
+        requireOwner();
+        long identity = Binder.clearCallingIdentity();
+        try {
+            return session.forgetStartMode();
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    @Override
     public String getDiagnostics(boolean includeSystemLog) {
         requireOwner();
         long identity = Binder.clearCallingIdentity();
@@ -172,8 +209,21 @@ public final class DisplayService extends IDisplayService.Stub {
             if (includeSystemLog) {
                 try {
                     String raw = DisplayControl.run(8, "/system/bin/logcat", "-d", "-b", "main,system,crash",
-                            "-v", "threadtime", "-t", "8000");
-                    out.put("systemLog", LogFilter.filter(raw, SYSTEM_LOG_LINES));
+                            "-v", "threadtime", "-t", "20000");
+                    String recent = LogFilter.filter(raw, SYSTEM_LOG_LINES);
+                    // A busy phone (video, Bluetooth) fills those lines within seconds. The key
+                    // display lines (hotplugs, modes, crashes) come from the whole buffer, picked by
+                    // grep on the phone, which is quick (under a second), unlike logcat's own regex.
+                    try {
+                        StringBuilder grep = new StringBuilder("/system/bin/logcat -d -b main,system,crash -v threadtime"
+                                + " | /system/bin/grep -F");
+                        for (String fragment : LogFilter.KEY_LINES) grep.append(" -e '").append(fragment).append('\'');
+                        String key = DisplayControl.run(8, "/system/bin/sh", "-c", grep + "; true");
+                        recent = LogFilter.merge(LogFilter.filter(key, KEY_LOG_LINES), recent, KEY_LOG_LINES);
+                    } catch (Exception ignored) {
+                        // The recent lines are still there.
+                    }
+                    out.put("systemLog", recent);
                 } catch (Exception e) {
                     out.put("systemLogError", DisplayControl.describe(e));
                 }

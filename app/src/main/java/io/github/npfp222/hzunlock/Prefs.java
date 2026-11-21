@@ -97,9 +97,12 @@ final class Prefs {
         store.edit().putBoolean("includeSystemLog", value).apply();
     }
 
-    /** Whether the user last left high refresh on. */
+    /**
+     * Whether the user last left high refresh on. On until they turn it off, so a new install
+     * starts it as soon as Shizuku allows (with Restore Automatically, which is also on).
+     */
     boolean wantOn() {
-        return store.getBoolean("wantOn", false);
+        return store.getBoolean("wantOn", true);
     }
 
     void setWantOn(boolean value) {
