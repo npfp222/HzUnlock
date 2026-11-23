@@ -62,11 +62,11 @@ final class LogFilter {
     /**
      * Message fragments of the key display lines, for a long read of the whole log buffer
      * through {@code grep -F} (see {@link #KEY_LINES}): composer hotplugs and modes,
-     * SurfaceFlinger's initial mode and pacesetter, display add/remove, and crashes.
+     * SurfaceFlinger's initial mode and pacesetter, display add/remove, native crashes, and HzUnlock's own.
      */
     static final String[] KEY_LINES = {"HWCSession::", "SubmitDisplayConfig", "[ActiveConfig] Set mode", "HWTVDRM::",
             "num_configs", "GetSupportedBitClkRate", "initial mode", "pacesetter", "setDesiredMode: Attempted",
-            "Display device added", "Display device removed", "FATAL EXCEPTION", "Fatal signal",
+            "Display device added", "Display device removed", "Fatal signal",
             "Process: io.github.npfp222.hzunlock"};
     /** Longer lines (a whole display description with every mode) are cut here. */
     private static final int MAX_LINE = 600;

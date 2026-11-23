@@ -256,6 +256,14 @@ final class RefreshSession {
     private long pacedSince;
     /** True once SurfaceFlinger refused to draw apps below the phone panel's own rate. */
     private volatile boolean noRenderCaps;
+    /**
+     * True once SurfaceFlinger didn't keep the phone panel at one of its own modes several times
+     * in a row (a Galaxy Z Fold4 on One UI 8 did this every time). App timing is then left with
+     * Android until High Refresh is turned off.
+     */
+    private volatile boolean noPhoneHold;
+    private int phoneHoldFailures;
+    private static final int PHONE_HOLD_TRIES = 3;
     /** What was last written to the event log about each monitor's mode, to log only changes. */
     private final Map<Long, String> loggedModes = new HashMap<>();
     private final Map<Long, String> monitorNames = new HashMap<>();
@@ -486,6 +494,8 @@ final class RefreshSession {
         linkDrops.reset();
         phonePaced.clear();
         pacedRetried.clear();
+        noPhoneHold = false;
+        phoneHoldFailures = 0;
         pacedMonitor = null;
         seenMonitors.clear();
         connectedSince.clear();
@@ -519,18 +529,23 @@ final class RefreshSession {
     private synchronized void tick() {
         // Not active while an undo is turning the session off; nothing may reconnect meanwhile.
         if (worker == null || !active) return;
+        // A mode switch's steps and its undo deadline run on every tick, even one that fails
+        // earlier (pacing the phone screen, say); otherwise a black monitor would never be undone.
+        boolean modeChecked = false;
+        DisplayControl.Info tickLead = null;
         try {
             long now = SystemClock.elapsedRealtime();
             List<DisplayControl.Info> displays;
             try {
                 displays = DisplayControl.displays();
             } catch (Exception e) {
-                // A mode switch's time limits still apply while the displays can't be read.
+                modeChecked = true;
                 checkModeSwitch(null, now);
                 throw e;
             }
             DisplayControl.Info phone = phone(displays);
             DisplayControl.Info lead = lead(displays);
+            tickLead = lead;
             Set<Long> present = new HashSet<>();
             boolean newMonitor = false;
             // True when a new monitor may get DeX's faster modes switched on again.
@@ -663,7 +678,7 @@ final class RefreshSession {
                     log.add("The monitor stayed connected for " + PACED_RETRY_MS / 1000 + " s. App timing moves back to it.");
                 }
                 PhoneRate phoneRate = null;
-                if (phone != null && DisplayControl.canHoldPolicy() && (noPacesetter || phoneOnly || want < link - 1f)) {
+                if (phone != null && canHoldPhone() && (noPacesetter || phoneOnly || want < link - 1f)) {
                     // Without pacesetter control the phone panel always paces, up to the monitor's rate.
                     float ceiling = noPacesetter ? link + 1f : link - 1f;
                     phoneRate = phoneRateFor(phone, want, ceiling, !noRenderCaps);
@@ -706,6 +721,7 @@ final class RefreshSession {
                             noPacesetter ? "phone screen (no monitor timing)" : "monitor"));
                 }
             }
+            modeChecked = true;
             checkModeSwitch(lead, now);
             if (lead != null) {
                 checkAfterReconnect(lead, now);
@@ -717,6 +733,13 @@ final class RefreshSession {
             // Catch errors too: an uncaught one would silently cancel the scheduled tick.
             notice = "Display update failed: " + DisplayControl.describe(e);
             log.add(notice);
+            if (!modeChecked && active) {
+                try {
+                    checkModeSwitch(tickLead, SystemClock.elapsedRealtime());
+                } catch (Throwable ignored) {
+                    // The next tick tries again.
+                }
+            }
         }
     }
 
@@ -834,10 +857,16 @@ final class RefreshSession {
         }
     }
 
+    /** Whether the phone panel's rate can be held: the API exists and SurfaceFlinger keeps it. */
+    private boolean canHoldPhone() {
+        return !noPhoneHold && DisplayControl.canHoldPolicy();
+    }
+
     /**
      * Pins a display's default mode and both ranges to {@code rate} so Android can't move it.
      * Returns false, and stops offering such rates, when SurfaceFlinger won't let apps draw below
-     * the panel's own rate.
+     * the panel's own rate, or won't keep the panel's own mode at all (then no phone rates are
+     * held again, so a refusal can't stop the rest of the tick, such as a monitor mode switch).
      */
     private boolean hold(long id, IBinder token, PhoneRate rate) throws Exception {
         if (token == null) return true;
@@ -852,19 +881,29 @@ final class RefreshSession {
                 throw new IOException("SurfaceFlinger didn't keep " + Math.round(rate.hz()) + " Hz.");
             }
         } catch (Exception e) {
-            if (!rate.capped()) throw e;
-            noRenderCaps = true;
             // Put back what was there, which is either Android's policy or one already recorded.
             try {
                 DisplayControl.writeSpecs(token, current);
             } catch (Exception ignored) {
                 // Releasing the phone policy below, or turning off, restores it.
             }
+            if (!rate.capped()) {
+                // Once may be a passing refusal (the panel changing, say); the next tick tries again.
+                if (++phoneHoldFailures >= PHONE_HOLD_TRIES) {
+                    noPhoneHold = true;
+                    log.add("SurfaceFlinger didn't keep the phone screen at " + Math.round(rate.hz()) + " Hz ("
+                            + DisplayControl.describe(e) + "). App timing stays with Android until High Refresh "
+                            + "is turned off.");
+                }
+                return false;
+            }
+            noRenderCaps = true;
             log.add("SurfaceFlinger didn't keep apps at " + Math.round(rate.hz()) + " Hz on the phone screen's "
                     + Math.round(mode.hz()) + " Hz mode (" + DisplayControl.describe(e) + "). Offering only the "
                     + "phone screen's own modes from now on.");
             return false;
         }
+        phoneHoldFailures = 0;
         Policy previous = policies.get(id);
         // Keep Android's own policy for restoring; never record one of ours as the original.
         Object original = previous != null && previous.token().equals(token)
@@ -1802,7 +1841,7 @@ final class RefreshSession {
         caps.put("highRes", DisplayControl.hasHighResolutionSwitch());
         caps.put("monitorTiming", !noPacesetter);
         caps.put("monitorTimingVerified", pacesetterVerified);
-        caps.put("phoneRates", DisplayControl.canHoldPolicy());
+        caps.put("phoneRates", canHoldPhone());
         caps.put("heat", thermalStatus >= 0);
         caps.put("codes", DisplayControl.pacesetterCodes());
         caps.put("root", root);
@@ -1844,12 +1883,12 @@ final class RefreshSession {
                 TreeSet<Integer> stops = new TreeSet<>();
                 boolean phoneOnly = running && phonePaced.contains(lead.id());
                 if (!noPacesetter && !phoneOnly) stops.add(Math.round(link));
-                if (phone != null && DisplayControl.canHoldPolicy()) {
+                if (phone != null && canHoldPhone()) {
                     for (PhoneRate rate : phoneRates(phone, noPacesetter ? link + 1f : link - 1f, !noRenderCaps)) {
                         stops.add(Math.round(rate.hz()));
                     }
                 }
-                if (stops.isEmpty()) stops.add(Math.round(noPacesetter && phone != null ? phone.fastest().hz() : link));
+                if (stops.isEmpty()) stops.add(Math.round(noPacesetter && phone != null ? Math.min(phone.fastest().hz(), link) : link));
                 // Only rates the current connection really runs at. The slider paces apps; it never
                 // changes the monitor's own mode, which only root can choose (Monitor Mode).
                 json.put("stops", new JSONArray(stops));
